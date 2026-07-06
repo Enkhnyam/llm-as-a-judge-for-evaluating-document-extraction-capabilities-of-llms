@@ -1,0 +1,6 @@
+/curated_data*
+
+*.json
+*.md
+
+.env

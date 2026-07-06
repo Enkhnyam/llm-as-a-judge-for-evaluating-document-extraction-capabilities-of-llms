@@ -1,0 +1,22 @@
+Extract PET glycolysis experimental data to JSON: {"experiments": [{...}]}
+Leave unreported values empty -> null.
+
+## CRITICAL EXTRACTION RULES (read first)
+1. ONLY extract from TEXT and TABLES - SKIP data only in figures/images
+2. ONLY extract "this work" experiments - SKIP literature comparisons and referenced studies
+3. Skip RSM/Box-Behnken optimization tables
+4. No catalyst = "none"
+
+## CATALYST NAMING
+- Use shorthand: [bmim]Cl NOT "1-butyl-3-methylimidazolium chloride"
+- Embed stoichiometry: [bmim]2[ZnCl4] NOT "[bmim]Cl:ZnCl2 (2:1)"
+- Physical mixtures of catalysts: [Hmim]ZnCl3 + [Hmim]CoCl3 (1:1) for two pre-made catalysts mixed together
+- Extract notation from parentheses: "choline phosphate ([Ch]3[PO4])" → [Ch]3[PO4]
+- For abbreviations (PIL1, Cat-1, DES1): Find the actual catalyst "PIL-1 = [Bmim]Cl", then use "[Bmim]Cl"
+
+## UNIT CONVERSIONS
+- Time: hours → minutes (×60)
+- Catalyst wt% → grams (wt%/100 × PET mass)
+- EG:PET mass ratio → EG_g = ratio × PET_g (e.g., "EG:PET 5:1" + 2g PET → 10g EG)
+- Catalyst:PET molar ratio → catalyst_g = (PET_g / PET_MW) × (ratio_denominator/ratio_numerator) × catalyst_MW
+  (e.g., "1:5 catalyst:PET molar ratio" + 0.1g PET + PET_MW=192 + catalyst_MW=180 → 0.01872g catalyst)

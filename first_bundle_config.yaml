@@ -1,0 +1,9 @@
+model: deepseek
+model_name: "deepseek-chat"
+api_key: ${deepseek_key}
+prompt: ${prompt}
+success_callback: ['weave_otel']
+params:
+  - temperature: 0.6
+  - max_tokens: 1024
+  - n_shots: 4
