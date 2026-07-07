@@ -1,9 +1,15 @@
-model: deepseek
-model_name: "deepseek-chat"
-api_key: ${deepseek_key}
-prompt: ${prompt}
+model_name: deepseek
+
 success_callback: ['weave_otel']
-params:
-  - temperature: 0.6
-  - max_tokens: 1024
-  - n_shots: 4
+
+llm_params:
+  model: deepseek/deepseek-chat
+  api_key: ${deepseek_key}
+  temperature: 0.6
+  max_tokens: 1024
+
+harness_params:
+  prompt: ${prompt}
+  n_shots: 4
+  shot_selection: random
+  seed: deepseek_v4_random_4_r1

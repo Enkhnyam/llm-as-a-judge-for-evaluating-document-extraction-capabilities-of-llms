@@ -1,15 +1,10 @@
 from pathlib import Path
 import json
+from utils import filename_to_doi
 
 current_dir = Path(__file__).parent
 curated_data_json_path = current_dir / "extracted_data_with_sources.json"
 curated_data_markdown_dir = current_dir / "curated_data_markdown_by_doi"
-
-def doi_to_filename(doi: str, filetype: str) -> str:
-    return f"{doi.replace('/', '@')}.{filetype}"
-
-def filename_to_doi(filename: str) -> str:
-    return filename.rsplit(".", 1)[0].replace("@", "/")
 
 def main():
     markdown_papers = {}
