@@ -1,15 +1,20 @@
 model_name: deepseek
 
-success_callback: ['weave_otel']
+success_callback: []   # add 'weave_otel' back once Weave + opentelemetry are set up
 
 llm_params:
   model: deepseek/deepseek-chat
   api_key: ${deepseek_key}
   temperature: 0.6
-  max_tokens: 1024
+  max_tokens: 8192
 
 harness_params:
-  prompt: ${prompt}
+  prompt_file: prompt.txt
   n_shots: 4
   shot_selection: random
   seed: deepseek_v4_random_4_r1
+  evaluation:
+    tp_threshold: 0.3
+    catalyst_threshold: 0.8
+    numeric_tolerance: 0.2
+

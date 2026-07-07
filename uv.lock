@@ -840,6 +840,7 @@ dependencies = [
     { name = "docling" },
     { name = "envyaml" },
     { name = "litellm" },
+    { name = "numpy" },
 ]
 
 [package.metadata]
@@ -847,6 +848,7 @@ requires-dist = [
     { name = "docling", specifier = ">=2.110.0" },
     { name = "envyaml", specifier = ">=1.10.211231" },
     { name = "litellm", specifier = ">=1.91.0" },
+    { name = "numpy", specifier = ">=2.5.1" },
 ]
 
 [[package]]

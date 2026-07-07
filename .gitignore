@@ -4,3 +4,5 @@
 *.md
 
 .env
+/runs/
+__pycache__/
