@@ -1,36 +1,38 @@
 import json
 import random
-import sys
+import argparse
 from pathlib import Path
 
+import weave
 import litellm
 from envyaml import EnvYAML
 from tqdm import tqdm
 
 import bundle
+import parse
 from evaluation import evaluate
-from schema import Experiment, ExtractionResponse, extraction_tool, load_curated
+from schema import Experiment, ExtractionResponse, load_curated
 from utils import filename_to_doi
 
 current_dir = Path(__file__).parent
-config_file_path = current_dir / "first_bundle_config.yaml"
 env_file_path = current_dir / ".env"
 curated_data_json_path = current_dir / "curated_data_json_by_doi.json"
 curated_data_markdown_dir = current_dir / "curated_data_markdown_by_doi"
 runs_dir = current_dir / "runs"
-
-FORCE_TOOL = {"type": "function", "function": {"name": "extract_experiments"}}
 
 
 def track_cost(kwargs, completion_response, start_time, end_time):
     print("Cost:", kwargs.get("response_cost", 0))
 
 
-def run_llm(llm_params: dict, messages, tools=None, tool_choice=None, **kwargs):
+@weave.op(postprocess_output=lambda out: {"records": out[0]})
+def run_llm(llm_params: dict, messages, **kwargs):
     try:
         resp = litellm.completion(
-            messages=messages, tools=tools, tool_choice=tool_choice,
-            num_retries=5, **llm_params, **kwargs,
+            messages=messages,
+            response_format=ExtractionResponse,
+            num_retries=5,
+            **llm_params, **kwargs,
         )
     except litellm.AuthenticationError as e:
         raise RuntimeError(f"Authentication error: {e}. Check your API key.")
@@ -39,17 +41,14 @@ def run_llm(llm_params: dict, messages, tools=None, tool_choice=None, **kwargs):
     except litellm.APIError as e:
         raise RuntimeError(f"API error: {e}. LLM service issue.")
 
-    tool_calls = resp.choices[0].message.tool_calls
-    if not tool_calls:
-        return [], resp
-    records = ExtractionResponse.model_validate_json(tool_calls[0].function.arguments)
+    records = ExtractionResponse.model_validate_json(resp.choices[0].message.content)
     return records.experiments, resp
 
 
 def read_prompt(harness_params: dict) -> str:
     return (current_dir / harness_params.get("prompt_file", "prompt.txt")).read_text(encoding="utf-8")
 
-
+@weave.op()
 def construct_prompt(harness_params: dict, target_doi: str) -> list[dict]:
     n_shots = harness_params["n_shots"]
     prompt = read_prompt(harness_params)
@@ -79,6 +78,12 @@ def _cost(resp) -> float:
         return float(litellm.completion_cost(completion_response=resp) or 0.0)
     except Exception:
         return float((getattr(resp, "_hidden_params", {}) or {}).get("response_cost") or 0.0)
+    
+
+def cmd_parse(src: str, dest: str) -> None:
+    if not src or not dest:
+        raise ValueError("Both --src and --dest must be provided for parsing stage.")
+    parse.parse_src_dest_directories(Path(src), Path(dest))
 
 
 def cmd_extract(env, run_dir: Path, limit: int | None = None) -> None:
@@ -86,7 +91,7 @@ def cmd_extract(env, run_dir: Path, limit: int | None = None) -> None:
     if limit:
         md_files = md_files[:limit]
 
-    config = bundle.resolve_config(env)
+    config = bundle.unpack_config(env)
     config["harness_params"]["prompt"] = read_prompt(env["harness_params"])  # embed actual text
     bundle.write_json(run_dir / "config.json",
                       {"content_hash": bundle.content_hash(config), **config})
@@ -99,12 +104,13 @@ def cmd_extract(env, run_dir: Path, limit: int | None = None) -> None:
     for md in tqdm(md_files, desc="extract"):
         doi = filename_to_doi(md.name)
         messages = construct_prompt(env["harness_params"], doi)
-        records, resp = run_llm(env["llm_params"], messages,
-                                tools=[extraction_tool()], tool_choice=FORCE_TOOL)
+        records, resp = run_llm(env["llm_params"], messages)
         fn = bundle.doi_to_filename(doi)
         bundle.write_json(run_dir / "extractions" / fn,
                           {"doi": doi, "records": [r.model_dump(by_alias=True) for r in records]})
-        bundle.write_json(run_dir / "raw" / fn, {"doi": doi, "messages": messages})
+        bundle.write_json(run_dir / "raw" / fn,
+                          {"doi": doi, "messages": messages,
+                           "response_content": resp.choices[0].message.content})
         usage = resp.usage
         meta["prompt_tokens"] += getattr(usage, "prompt_tokens", 0) or 0
         meta["completion_tokens"] += getattr(usage, "completion_tokens", 0) or 0
@@ -137,13 +143,26 @@ def cmd_eval(env, run_dir: Path) -> None:
 
 
 def main():
-    stage = sys.argv[1] if len(sys.argv) > 1 else "all"
-    limit = int(sys.argv[2]) if len(sys.argv) > 2 else None
+    parser = argparse.ArgumentParser(prog="llm-as-a-judge-for-evaluating-document-extraction-capabilities-of-llms")
+    parser.add_argument("stage", choices=["extract", "eval", "parse", "all"], default="all")
+    parser.add_argument("--limit", type=int, nargs="?", default=None, help="Limit number of papers to process")
+    parser.add_argument("--config", type=str, nargs="?", default="rwth_bundle_config.yaml", help="Path to bundle config YAML")
+    parser.add_argument("--src", type=str, nargs="?", default=None, help="Source directory for parsing PDFs")
+    parser.add_argument("--dest", type=str, nargs="?", default=None, help="Destination directory for parsed Markdown files")
 
-    env = EnvYAML(config_file_path, env_file=env_file_path)
+    args = parser.parse_args()
+    
+    stage: str = args.stage
+    limit: int = args.limit
+
+    env = EnvYAML(current_dir / Path(args.config), env_file=env_file_path)
     litellm.success_callback = [track_cost, *env["success_callback"]]
-    run_dir = runs_dir / env["harness_params"]["seed"]
+    run_dir = runs_dir / env["run_name"]
 
+    weave.init("llm-as-a-judge-for-evaluating-document-extraction-capabilities-of-llms")
+
+    if stage in ("parse"):
+        cmd_parse(args.src, args.dest)
     if stage in ("extract", "all"):
         cmd_extract(env, run_dir, limit)
     if stage in ("eval", "all"):

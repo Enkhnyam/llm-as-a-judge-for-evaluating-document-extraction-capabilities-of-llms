@@ -30,16 +30,17 @@ def git_commit() -> str | None:
         return None
 
 
-def resolve_config(env) -> dict:
+def unpack_config(env) -> dict:
     """Plain, secret-free config dict suitable for hashing and snapshotting.
 
     NOTE: api_key is deliberately dropped so it never lands in a bundle.
     """
     llm_params = {k: v for k, v in dict(env["llm_params"]).items() if k != "api_key"}
+    harness_params = {k: v for k, v in dict(env["harness_params"]).items() if k != "prompt_file"}
     return {
-        "model_name": env["model_name"],
+        "run_name": env["run_name"],
         "llm_params": llm_params,
-        "harness_params": dict(env["harness_params"]),
+        "harness_params": harness_params,
     }
 
 

@@ -1,11 +1,12 @@
-run_name: deepseek_v4_n4_r1
+run_name: openai_oss_120b_n4_r1
 
 success_callback: []   # add 'weave_otel' back once Weave + opentelemetry are set up
 
 llm_params:
-  model: deepseek/deepseek-chat
-  api_key: ${deepseek_key}
-  temperature: 0.6
+  model: openai/gpt-oss-120b
+  api_key: ${openai_key}
+  api_base: https://chat.kiconnect.nrw/api/v1/
+  temperature: 1
   max_tokens: 8192
 
 harness_params:
