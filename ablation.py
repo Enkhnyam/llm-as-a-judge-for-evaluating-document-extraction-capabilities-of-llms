@@ -1,27 +1,10 @@
 import argparse
 import copy
-import shutil
 
 import litellm
-from envyaml import EnvYAML
 
-from core.paths import ABLATION_CONFIGS_DIR, ENV_FILE, RUNS_DIR
-from core import extraction, evaluation, tracking
-
-
-def load_base(config_path: str) -> dict:
-    """Load the base config into a plain, deep-copyable dict (resolves ${env} vars)."""
-    env = EnvYAML(str(ABLATION_CONFIGS_DIR / config_path), env_file=str(ENV_FILE))
-    if not env:
-        raise ValueError(f"Invalid config file: {ABLATION_CONFIGS_DIR / config_path}")
-    hp = dict(env["harness_params"])
-    hp["evaluation"] = dict(env["harness_params"]["evaluation"])
-    return {
-        "run_name": env["run_name"],
-        "success_callback": env["success_callback"] if "success_callback" in env else [],
-        "llm_params": dict(env["llm_params"]),
-        "harness_params": hp,
-    }
+from core.paths import ABLATION_CONFIGS_DIR, RUNS_DIR
+from core import tracking, sweep
 
 
 def main():
@@ -35,7 +18,7 @@ def main():
     parser.add_argument("--force", action="store_true", help="Re-run conditions even if already complete")
     args = parser.parse_args()
 
-    base = load_base(args.config)
+    base = sweep.load_config(ABLATION_CONFIGS_DIR / args.config)
     prefix = args.prefix or base["run_name"]
     litellm.success_callback = base["success_callback"]
     tracking.init_tracing()
@@ -46,31 +29,13 @@ def main():
 
     for n, r in conditions:
         env = copy.deepcopy(base)
+        # For ablation we set n_shots manually regardless of what is in the config file
         env["harness_params"]["n_shots"] = n
         env["run_name"] = f"{prefix}_n{n}_r{r}"
         run_dir = RUNS_DIR / env["run_name"]
 
-        config_exists   = (run_dir / "config.json").exists()    # extraction STARTED
-        extraction_done = (run_dir / "run_meta.json").exists()   # extraction FINISHED
-        evaluation_done = (run_dir / "eval.json").exists()       # eval FINISHED
-
-        if evaluation_done and not args.force:
-            print(f"skip {env['run_name']} (already complete)")
-            continue
-
-        if extraction_done and not args.force:                   # extraction ok, only eval missing
-            print(f"eval-only {env['run_name']} (reusing extractions)")
-            evaluation.run(env, run_dir)                          # cheap, no re-extract
-            continue
-
-        if config_exists:                                        # partial/crashed extraction
-            print(f"re-running {env['run_name']} (removing incomplete {run_dir.name})")
-            shutil.rmtree(run_dir)
-
-        print(f"\n=== {env['run_name']} (n_shots={n}, repeat={r}) ===")
-        extraction.run(env, run_dir, args.limit)
-        evaluation.run(env, run_dir)
-
+        sweep.run_condition(env, run_dir, limit=args.limit, force=args.force)
+        print(f"=== {env['run_name']} (n_shots={n}, repeat={r}) ===\n")
 
 if __name__ == "__main__":
     main()
