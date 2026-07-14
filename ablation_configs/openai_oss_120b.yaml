@@ -1,4 +1,4 @@
-run_name: openai_oss_120b_r1
+run_name: openai_oss_120b
 
 llm_params:
   model: openai/gpt-oss-120b

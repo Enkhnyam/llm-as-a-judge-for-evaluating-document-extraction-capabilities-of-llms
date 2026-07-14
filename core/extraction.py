@@ -6,6 +6,8 @@ import weave
 import litellm
 from tqdm import tqdm
 
+from pydantic import ValidationError
+
 from .schema import ExtractionResponse
 from .utils import filename_to_doi, doi_to_filename
 from . import bundle, tracking
@@ -17,8 +19,9 @@ def _cost(resp) -> float:
     except Exception:
         return float((getattr(resp, "_hidden_params", {}) or {}).get("response_cost") or 0.0)
 
-@weave.op(postprocess_output=lambda out: {"records": out[0]})
+@weave.op(postprocess_output=lambda out: {"records": out[0] if out else []})
 def run_llm(llm_params: dict, messages, **kwargs):
+    """Call the model and parse its JSON into records"""
     try:
         resp = litellm.completion(
             messages=messages,
@@ -33,8 +36,11 @@ def run_llm(llm_params: dict, messages, **kwargs):
     except litellm.APIError as e:
         raise RuntimeError(f"API error: {e}. LLM service issue.")
 
-    records = ExtractionResponse.model_validate_json(resp.choices[0].message.content)
-    return records.experiments, resp
+    try:
+        records = ExtractionResponse.model_validate_json(resp.choices[0].message.content)
+        return records.experiments, resp, True
+    except ValidationError:
+        return [], resp, False
 
 
 def read_prompt(harness_params: dict) -> str:
@@ -79,12 +85,14 @@ def run(env: dict, run_dir: Path, limit: int | None = None) -> None:
     meta = {"seed": env["harness_params"]["seed"], "model": env["llm_params"]["model"],
             "git_commit": bundle.git_commit(), "started_at": bundle.now_iso(),
             "n_papers": len(md_files), "prompt_tokens": 0, "completion_tokens": 0,
-            "cost_usd": 0.0}
+            "cost_usd": 0.0, "parse_failed_papers": 0}
 
     for md in tqdm(md_files, desc="extract"):
         doi = filename_to_doi(md.name)
         messages = construct_prompt(env["harness_params"], doi)
-        records, resp = run_llm(env["llm_params"], messages)
+        records, resp, parsed_ok = run_llm(env["llm_params"], messages)
+        if not parsed_ok:
+            meta["parse_failed_papers"] += 1
         fn = doi_to_filename(doi, filetype="json")
         bundle.write_json(run_dir / "extractions" / fn,
                           {"doi": doi, "records": [r.model_dump(by_alias=True) for r in records]})
@@ -99,4 +107,7 @@ def run(env: dict, run_dir: Path, limit: int | None = None) -> None:
     meta["finished_at"] = bundle.now_iso()
     bundle.write_json(run_dir / "run_meta.json", meta)
     print(f"extraction bundle -> {run_dir}  (${meta['cost_usd']:.4f})")
+    if meta["parse_failed_papers"]:
+        print(f"  note: {meta['parse_failed_papers']}/{meta['n_papers']} papers returned "
+              f"unparseable output (0 records); see raw/*.json 'response_content'.")
     tracking.log_bundle(run_dir, stage="extract")
