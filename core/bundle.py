@@ -1,13 +1,3 @@
-"""Bundle helpers: a run is a self-contained folder on disk.
-
-    runs/<seed>/
-      config.json      resolved config (secrets stripped) + content_hash
-      run_meta.json    model, tokens, cost, timestamps, git commit
-      extractions/<doi>.json
-      raw/<doi>.json
-      eval.json
-      labels.json
-"""
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +5,6 @@ import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -56,7 +45,3 @@ def write_json(path: Path, obj) -> None:
 
 def read_json(path: Path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
-
-
-def doi_to_filename(doi: str) -> str:
-    return doi.replace("/", "@") + ".json"

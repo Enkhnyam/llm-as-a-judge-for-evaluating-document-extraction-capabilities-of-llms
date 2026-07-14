@@ -32,17 +32,6 @@ class ExtractionResponse(BaseModel):
     experiments: list[Experiment] = Field(default_factory=list)
 
 
-def extraction_tool() -> dict:
-    return {
-        "type": "function",
-        "function": {
-            "name": "extract_experiments",
-            "description": "Record all experiments extracted from this paper.",
-            "parameters": ExtractionResponse.model_json_schema(),
-        },
-    }
-
-
 def load_curated(path: str | Path) -> dict[str, list[Experiment]]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     curated: dict[str, list[Experiment]] = {}

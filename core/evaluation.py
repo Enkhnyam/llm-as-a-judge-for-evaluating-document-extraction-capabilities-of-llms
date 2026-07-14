@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
 from difflib import SequenceMatcher
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from schema import Experiment
+from .schema import Experiment, load_curated
+from .paths import resolve
+from . import bundle, tracking
 
 # The 10 evaluated fields (pressure is extracted but excluded, due to inconsistent reporting).
 EVAL_FIELDS = [
@@ -205,3 +208,25 @@ def evaluate(curated_by_doi: dict[str, list[Experiment]],
         "per_paper": per_paper,
     }
     return result, labels
+
+def run(env, run_dir: Path) -> None:
+    ev = env["harness_params"]["evaluation"]
+    curated_json = resolve(env["harness_params"].get("curated_data_path", "curated_data_json_by_doi.json"))
+    curated = load_curated(curated_json)
+
+    extracted_by_doi: dict[str, list[Experiment]] = {}
+    for f in sorted((run_dir / "extractions").glob("*.json")):
+        d = bundle.read_json(f)
+        extracted_by_doi[d["doi"]] = [Experiment.model_validate(r) for r in d["records"]]
+
+    result, labels = evaluate(
+        curated, extracted_by_doi,
+        tp_threshold=ev["tp_threshold"],
+        catalyst_threshold=ev["catalyst_threshold"],
+        numeric_tolerance=ev["numeric_tolerance"],
+    )
+    bundle.write_json(run_dir / "eval.json", result)
+    bundle.write_json(run_dir / "labels.json", labels)
+    print(f"eval -> P={result['precision']:.3f} R={result['recall']:.3f} "
+          f"F1={result['f1']:.3f}  (TP={result['tp']} FP={result['fp']} FN={result['fn']})")
+    tracking.log_bundle(run_dir, stage="eval")

@@ -39,3 +39,8 @@ def parse_src_dest_directories(src: Path, dest: Path) -> tuple[list[str], int]:
         (dest / f"{pdf.stem}.md").write_text(out_text)
     print(f"processed {len(parsed_files)} files ({s} skipped, {p} parsed)")
     return parsed_files, len(parsed_files)
+
+def run(src: str, dest: str) -> None:
+    if not src or not dest:
+        raise ValueError("Both --src and --dest must be provided for parsing stage.")
+    parse_src_dest_directories(Path(src), Path(dest))

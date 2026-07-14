@@ -1,6 +1,6 @@
 from pathlib import Path
 import json
-from utils import filename_to_doi
+from core.utils import filename_to_doi
 
 current_dir = Path(__file__).parent
 curated_data_json_path = current_dir / "extracted_data_with_sources.json"

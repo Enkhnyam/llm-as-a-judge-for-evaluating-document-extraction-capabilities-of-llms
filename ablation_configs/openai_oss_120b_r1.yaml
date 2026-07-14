@@ -1,6 +1,4 @@
-run_name: openai_oss_120b_n4_r1
-
-success_callback: []   # add 'weave_otel' back once Weave + opentelemetry are set up
+run_name: openai_oss_120b_r1
 
 llm_params:
   model: openai/gpt-oss-120b

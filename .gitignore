@@ -2,7 +2,9 @@
 
 *.json
 *.md
+*.code-workspace
 
 .env
 /runs/
+/wandb/
 __pycache__/
