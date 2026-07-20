@@ -9,7 +9,7 @@ llm_params:
 
 harness_params:
   prompt_file: prompt.txt
-  curated_data_path: curated_data_json_by_doi.json
+  curated_data_path: curated_data_json_by_doi_v2.json
   curated_data_markdown_dir: curated_data_markdown_by_doi
   n_shots: 4
   shot_selection: random
