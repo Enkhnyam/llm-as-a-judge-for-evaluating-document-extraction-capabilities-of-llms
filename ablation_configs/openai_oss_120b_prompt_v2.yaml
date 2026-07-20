@@ -1,4 +1,4 @@
-run_name: benchmark_openai_oss_120b_v2
+run_name: openai_oss_120b
 
 llm_params:
   model: openai/gpt-oss-120b
@@ -8,7 +8,8 @@ llm_params:
   max_tokens: 8192
 
 harness_params:
-  prompt_file: prompt.txt
+  prompt_file: openai_oss_120b_prompt_v2.txt
+  output_dir: openai_oss_120b_prompt_v2
   curated_data_path: curated_data_json_by_doi.json
   curated_data_markdown_dir: curated_data_markdown_by_doi
   n_shots: 4
