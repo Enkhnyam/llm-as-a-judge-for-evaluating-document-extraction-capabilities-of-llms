@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 from .licensing import licensable_dois
-from .paths import resolve
+from .paths import resolve, data_path
 from .utils import filename_to_doi
 
 def sanitize_run(run_dir: Path, out_dir: Path) -> dict:
@@ -32,7 +32,7 @@ def sanitize_curated(curated_path: str, out_path: Path) -> None:
     """Write a public curated dataset: keep records (facts) for all papers, but
     drop full_text for non-licensable papers."""
     allowed = licensable_dois()
-    data = json.loads(resolve(curated_path).read_text(encoding="utf-8"))
+    data = json.loads(data_path(curated_path).read_text(encoding="utf-8"))
     for paper in data:
         if paper["doi"] not in allowed:
             paper.pop("full_text", None)

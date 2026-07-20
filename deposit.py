@@ -2,7 +2,7 @@ import argparse
 import json
 import shutil
 
-from core.paths import ROOT, RUNS_DIR, resolve
+from core.paths import ROOT, ARTIFACTS, RUNS_DIR
 from core import deposit
 
 README = """# Reproducibility deposit
@@ -10,7 +10,7 @@ README = """# Reproducibility deposit
 Recompute the paper's extraction-evaluation numbers with no API keys and no network.
 
 ## Layout
-- `runs/<name>/` — one bundle per experimental run:
+- `runs/<path>/` — one bundle per experimental run (grouped by experiment):
   - `config.json` — exact configuration (content-hashed)
   - `extractions/` — model-extracted records (facts)
   - `eval.json` — the reported precision / recall / F1
@@ -24,7 +24,7 @@ Recompute the paper's extraction-evaluation numbers with no API keys and no netw
 ## Reproduce a run's numbers
 ```
 pip install -r requirements.txt
-python eval_bundle.py runs/<run_name>
+python eval_bundle.py runs/<path>
 ```
 Prints the recomputed P/R/F1 next to the published values and reports MATCH.
 
@@ -35,30 +35,36 @@ share-alike).
 """
 
 
+def find_runs(names: list[str] | None) -> list:
+    """Run bundles under RUNS_DIR (any dir holding a config.json), at any nesting depth."""
+    if names:
+        return [RUNS_DIR / n for n in names]
+    return sorted(p.parent for p in RUNS_DIR.rglob("config.json"))
+
+
 def main():
     parser = argparse.ArgumentParser(prog="deposit")
     parser.add_argument("--out", default="deposit", help="Output directory")
-    parser.add_argument("--runs", nargs="*", default=None, help="Run names (default: all in runs/)")
+    parser.add_argument("--runs", nargs="*", default=None,
+                        help="Run paths relative to runs/ (default: every bundle under runs/)")
     args = parser.parse_args()
 
-    out = resolve(args.out)
+    run_dirs = [d for d in find_runs(args.runs) if (d / "config.json").exists()]
+    if not run_dirs:
+        print(f"no run bundles found under {RUNS_DIR}")
+        return
+
+    out = ARTIFACTS / args.out
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
 
-    run_dirs = ([RUNS_DIR / r for r in args.runs] if args.runs
-                else [d for d in sorted(RUNS_DIR.iterdir()) if d.is_dir()])
-
     for run_dir in run_dirs:
-        if not (run_dir / "config.json").exists():
-            print(f"skip {run_dir.name} (no config.json)")
-            continue
-        kept, dropped = deposit.sanitize_run(run_dir, out / "runs" / run_dir.name)
-        print(f"{run_dir.name}: raw kept={kept} dropped={dropped}")
+        rel = run_dir.relative_to(RUNS_DIR)                  # e.g. prompt_v2/run_n4_r1
+        kept, dropped = deposit.sanitize_run(run_dir, out / "runs" / rel)
+        print(f"{rel}: raw kept={kept} dropped={dropped}")
 
-    config_file = next((rd for rd in run_dirs if (rd / "config.json").exists()), None)
-    config_data = json.loads(resolve(config_file / "config.json").read_text(encoding="utf-8"))
-
+    config_data = json.loads((run_dirs[0] / "config.json").read_text(encoding="utf-8"))
     curated_path = config_data["harness_params"].get("curated_data_path", "curated_data_json_by_doi.json")
     deposit.sanitize_curated(curated_path, out / "curated_data_public.json")
     deposit.write_credits(out / "CREDITS.md")
