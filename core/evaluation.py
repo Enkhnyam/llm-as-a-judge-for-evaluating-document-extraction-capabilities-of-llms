@@ -7,7 +7,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 from .schema import Experiment, load_curated
-from .paths import resolve
+from .paths import data_path
 from . import bundle
 
 # The 10 evaluated fields (pressure is extracted but excluded, due to inconsistent reporting).
@@ -210,9 +210,9 @@ def evaluate(curated_by_doi: dict[str, list[Experiment]],
     return result, labels
 
 def run(env, run_dir: Path) -> None:
-    from . import tracking   # lazy: keeps the metric importable without weave/wandb (for the deposit)
+    from . import tracking, inspect_view   # lazy: keeps the metric importable without weave/markdown-it (for the deposit)
     ev = env["harness_params"]["evaluation"]
-    curated_json = resolve(env["harness_params"].get("curated_data_path", "curated_data_json_by_doi.json"))
+    curated_json = data_path(env["harness_params"].get("curated_data_path", "curated_data_json_by_doi.json"))
     curated = load_curated(curated_json)
 
     extracted_by_doi: dict[str, list[Experiment]] = {}
@@ -230,4 +230,6 @@ def run(env, run_dir: Path) -> None:
     bundle.write_json(run_dir / "labels.json", labels)
     print(f"eval -> P={result['precision']:.3f} R={result['recall']:.3f} "
           f"F1={result['f1']:.3f}  (TP={result['tp']} FP={result['fp']} FN={result['fn']})")
+
+    inspect_view.build(run_dir)
     tracking.log_bundle(run_dir, stage="eval")
