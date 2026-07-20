@@ -20,3 +20,58 @@ Leave unreported values empty -> null.
 - EG:PET mass ratio → EG_g = ratio × PET_g (e.g., "EG:PET 5:1" + 2g PET → 10g EG)
 - Catalyst:PET molar ratio → catalyst_g = (PET_g / PET_MW) × (ratio_denominator/ratio_numerator) × catalyst_MW
   (e.g., "1:5 catalyst:PET molar ratio" + 0.1g PET + PET_MW=192 + catalyst_MW=180 → 0.01872g catalyst)
+
+## SOURCE TRACKING
+  For each experiment, populate the "source_chunk_ids" field with an array of source_chunk_ids which cite the source of the extracted data. 
+  Example:
+  "full_text": "...
+    ID: d3fba46f-7a92-5678-b8f2-48f4963659e5
+    Table II. Comparison of PET Degradation with Different Catalysts
+
+    | Source      | Catalyst                 |   Temperature (  C) |   Time (h) |   C PET (%) | S BHET (%)   |
+    |-------------|--------------------------|----------------------|------------|-------------|--------------|
+    | This work a | -                        |                  175 |          3 |         1.6 | 4.7          |
+    |             | [amim][MnCl 3 ]          |                  175 |        1.5 |         100 | 74.6         |
+    |             | [amim][FeCl 4 ]          |                  175 |          3 |         100 | 71.4         |
+    |             | [amim][CoCl 3 ]          |                  175 |       1.25 |         100 | 79.5         |
+    |             | [amim][CuCl 3 ]          |                  175 |          3 |        10.8 | 77.3         |
+    |             | [amim][ZnCl 3 ]          |                  175 |       1.25 |         100 | 80.1         |
+    |             | [amim]Cl                 |                  175 |       1.25 |         4.8 | 11.4         |
+    |             | ZnCl 2                   |                  175 |       1.25 |        94.1 | 76.2         |
+    |             | [bmim]Cl                 |                  175 |       1.25 |         3.7 | 9.8          |
+    |             | [bmim][FeCl 4 ]          |                  175 |       1.25 |        19.7 | 48.3         |
+    | Ref. 24b    | [bmim][FeCl 4 ]          |                  178 |          4 |         100 | 59.2         |
+    | Ref. 25c    | [bmim][H 2 PO 4 ]        |                  175 |          8 |         6.9 | -            |
+    |             | [bmim][HSO 4 ]           |                  170 |          8 |         0.5 | -            |
+    |             | [3a-C 3 P(C 4 ) 3 ][Gly] |                  180 |          8 |         100 | -            |
+    |             | [3a-C 3 P(C 4 ) 3 ][Ala] |                  180 |          8 |         100 | -            |
+    |             | [bmim]Cl                 |                  180 |          8 |        44.7 | -            |
+    |             | [bmim]Br                 |                  180 |          8 |        98.7 | -            |
+    | Ref. 8d     | [bmim]OH                 |                  190 |          2 |         100 | 71.2         |
+    |             | [bmim][HCO 3 ]           |                  190 |          2 |        82.8 | 14.1         |
+    | Ref. 33e    | [Deim][Zn(OAc) 3 ]       |                  180 |        1.5 |         100 | 67.10        |
+    |             | [Deim][Cu(OAc) 3 ]       |                  180 |          2 |         100 | 58.64        |
+    |             | [Deim][Mn(OAc) 3 ]       |                  180 |       3.75 |         100 | 51.30        |
+    |             | [Deim][Co(OAc) 3 ]       |                  180 |        1.5 |         100 | 56.65        |
+    |             | [Deim][Ni(OAc) 3 ]       |                  180 |       1.75 |         100 | 54.13        |
+  ...
+  ID: f5cb1641-6477-5591-b362-3a8014221962
+  a Reaction conditions: atmospheric pressure, 5.0 g PET, 20 g EG, and 0.5 g catalyst.
+  ..."
+  "extracted_data": {
+    "catalyst": "[amim][MnCl3]",
+    "solvent": "ethylene glycol",
+    "temperature_c": 175,
+    "reaction_time_min": 90,
+    "catalyst_amount_g": 0.5,
+    "PET_amount_g": 5,
+    "solvent_amount_g": 20,
+    "yield_percent": null,
+    "selectivity_percent": 74.6,
+    "conversion_percent": 100,
+    "pressure_atm": 1
+  },
+  "source_chunk_ids": [
+    "d3fba46f-7a92-5678-b8f2-48f4963659e5",
+    "f5cb1641-6477-5591-b362-3a8014221962"
+  ],
