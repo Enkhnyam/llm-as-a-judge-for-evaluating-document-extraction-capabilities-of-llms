@@ -23,8 +23,7 @@ def parse_src_dest_directories(src: Path, dest: Path) -> tuple[list[str], int]:
         out = []
         for i, (item, _) in enumerate(doc.iterate_items()):
             if isinstance(item, TableItem):
-                cap = item.caption_text(doc) or ""
-                text = (cap + "\n" + item.export_to_markdown(doc)).strip()
+                text = item.export_to_markdown(doc).strip()
             elif isinstance(item, TextItem):
                 text = (item.text or "").strip()
             else:
