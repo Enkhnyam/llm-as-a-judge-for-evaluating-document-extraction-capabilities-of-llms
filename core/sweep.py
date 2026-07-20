@@ -25,6 +25,8 @@ def load_config(config_path) -> dict:
     }
     if "repeats" in env:                     # optional per-model repeat count (benchmark)
         cfg["repeats"] = env["repeats"]
+    if "output_dir" in env:                  # optional per-config output folder (default runs/)
+        cfg["output_dir"] = env["output_dir"]
     return cfg
 
 

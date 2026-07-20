@@ -3,7 +3,7 @@ import copy
 
 import litellm
 
-from core.paths import ABLATION_CONFIGS_DIR, RUNS_DIR
+from core.paths import ABLATION_CONFIGS_DIR, output_root
 from core import tracking, sweep
 
 
@@ -32,7 +32,7 @@ def main():
         # For ablation we set n_shots manually regardless of what is in the config file
         env["harness_params"]["n_shots"] = n
         env["run_name"] = f"{prefix}_n{n}_r{r}"
-        run_dir = RUNS_DIR / env["run_name"]
+        run_dir = output_root(base["harness_params"].get("output_dir")) / env["run_name"]
 
         sweep.run_condition(env, run_dir, limit=args.limit, force=args.force)
         print(f"=== {env['run_name']} (n_shots={n}, repeat={r}) ===\n")

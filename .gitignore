@@ -1,10 +1,11 @@
-/curated_data*
-
-*.json
-*.md
-*.code-workspace
-
+# secrets
 .env
-/runs/
+
+/artifacts/
 /wandb/
+
+# python / editor cruft
 __pycache__/
+.venv/
+*.code-workspace
+*.md

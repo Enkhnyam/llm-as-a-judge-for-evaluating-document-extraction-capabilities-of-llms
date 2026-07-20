@@ -3,7 +3,7 @@ import argparse
 import litellm
 from envyaml import EnvYAML
 
-from core.paths import ROOT, ENV_FILE, RUNS_DIR
+from core.paths import ROOT, ENV_FILE, output_root
 from core import extraction, evaluation, parse, tracking
 
 
@@ -14,7 +14,8 @@ def track_cost(kwargs, completion_response, start_time, end_time):
 def run_config(config_path: str, stage: str, limit: int | None) -> None:
     env = EnvYAML(str(ROOT / config_path), env_file=str(ENV_FILE))
     litellm.success_callback = [track_cost, *env.get("success_callback", [])]
-    run_dir = RUNS_DIR / env["run_name"]
+    out = env["output_dir"] if "output_dir" in env else None
+    run_dir = output_root(out) / env["run_name"]
 
     if stage in ("extract", "all"):
         extraction.run(env, run_dir, limit)

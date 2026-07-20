@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from .schema import ExtractionResponse
 from .utils import filename_to_doi, doi_to_filename
 from . import bundle, tracking
-from .paths import resolve
+from .paths import prompt_path, data_path
 from .licensing import licensable_dois
 
 def _cost(resp) -> float:
@@ -45,7 +45,7 @@ def run_llm(llm_params: dict, messages, **kwargs):
 
 
 def read_prompt(harness_params: dict) -> str:
-    return resolve(harness_params.get("prompt_file", "prompt.txt")).read_text(encoding="utf-8")
+    return prompt_path(harness_params.get("prompt_file", "prompt.txt")).read_text(encoding="utf-8")
 
 @weave.op()
 def construct_prompt(harness_params: dict, target_doi: str) -> list[dict]:
@@ -53,7 +53,7 @@ def construct_prompt(harness_params: dict, target_doi: str) -> list[dict]:
     prompt = read_prompt(harness_params)
     rng = random.Random(harness_params["seed"])
 
-    curated_json = resolve(harness_params.get("curated_data_path", "curated_data_json_by_doi.json"))
+    curated_json = data_path(harness_params.get("curated_data_path", "curated_data_json_by_doi.json"))
     data = json.loads(curated_json.read_text(encoding="utf-8"))
     target_paper = next(x for x in data if x["doi"] == target_doi)
     # Few-shot exemplars must be redistributable: draw only from the licensable papers
@@ -76,7 +76,7 @@ def construct_prompt(harness_params: dict, target_doi: str) -> list[dict]:
     return messages
 
 def run(env: dict, run_dir: Path, limit: int | None = None) -> None:
-    md_dir = resolve(env["harness_params"].get("curated_data_markdown_dir", "curated_data_markdown_by_doi"))
+    md_dir = data_path(env["harness_params"].get("curated_data_markdown_dir", "curated_data_markdown_by_doi"))
     md_files = sorted(md_dir.glob("*.md")) 
     if limit:
         md_files = md_files[:limit]
