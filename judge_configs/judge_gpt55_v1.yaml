@@ -1,0 +1,17 @@
+run_name: judge_gpt55
+
+# Judge model MUST differ from the extractor (self-preference bias). Endpoint offers:
+# gpt-5.5, mistral-small-4-119b-2603 (extractor is gpt-oss-120b).
+llm_params:
+  model: openai/gpt-5.5
+  api_key: ${openai_key}
+  api_base: https://chat.kiconnect.nrw/api/v1/
+  temperature: 1        # gpt-5.5 rejects any other value
+  max_tokens: 2048
+
+harness_params:
+  rubric_file: judge_rubric_v1.txt
+  # The frozen Loop-A extraction bundle to judge (relative to artifacts/runs/):
+  extraction_run: openai_oss_120b_prompt_v2/openai_oss_120b_n4_r3
+  curated_data_markdown_dir: curated_data_markdown_by_doi
+  output_dir: judge_gpt55_v1
