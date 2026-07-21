@@ -69,6 +69,7 @@ def run_stats(run_dir: Path) -> dict:
 
 def build_data(run_dirs: list[Path]) -> dict:
     runs = [run_stats(d) for d in run_dirs if (d / "eval.json").exists()]
+    runs.sort(key=lambda r: r["tp"], reverse=True)
     dois = list(dict.fromkeys(doi for r in runs for doi in r["papers"]))
     return {"runs": runs, "fields": EVAL_FIELDS, "dois": dois}
 
@@ -111,6 +112,7 @@ TEMPLATE = """<!doctype html>
   .seg-fp { background: #d13b3b; } .seg-fn { background: #9a9a9a; }
   .legend span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 10px; }
   td.delta.up { color: #2e9e5b; font-weight: 600; } td.delta.down { color: #d13b3b; font-weight: 600; }
+  tr.grouphead td { background: #f0f3f8; font-weight: 600; text-align: left; color: #444; }
 </style>
 </head>
 <body>
@@ -161,21 +163,31 @@ function rygShade(v){ if(v==null) return "#f4f4f4"; return "hsl(" + (120*v).toFi
 const COLS = [["name","run"],["precision","P"],["recall","R"],["f1","F1"],["tp","TP"],["fp","FP"],["fn","FN"]];
 const bestF1 = Math.max(...runs.map(r=>r.f1));
 function renderSummary(sortKey, desc){
-  let rows = runs.map((r,i)=>({...r, i}));
-  if(sortKey) rows.sort((a,b)=> (a[sortKey]>b[sortKey]?1:-1) * (desc?-1:1));
+  const groups = {};
+  for(const r of runs) (groups[r.name] ??= []).push(r);
+  let groupList = Object.entries(groups).map(([name, gRuns]) => ({
+    name, runs: gRuns, avgF1: gRuns.reduce((s,r)=>s+r.f1,0) / gRuns.length,
+  }));
+  groupList.sort((a,b) => (a.avgF1 - b.avgF1) * -1);
+  for(const g of groupList) if(sortKey) g.runs.sort((a,b)=> (a[sortKey]>b[sortKey]?1:-1) * (desc?-1:1));
+
   let h = "<thead><tr>" + COLS.map(([k,l])=>
     '<th class="sortable ' + (k=="name"?"name":"") + '" data-k="'+k+'">'+l+'</th>').join("")
     + "<th class='name'>F1 = 2\\u00b7TP/(2\\u00b7TP+FP+FN)</th></tr></thead><tbody>";
-  for(const r of rows){
-    h += "<tr>";
-    for(const [k,l] of COLS){
-      if(k=="name"){ h += '<td class="name">'+esc(r.name)+"</td>"; }
-      else if(["precision","recall","f1"].includes(k)){
-        const w=(100*r[k]).toFixed(0), best = k=="f1"&&r.f1==bestF1?" best":"";
-        h += '<td class="bar'+best+'"><span style="width:'+w+'%"></span><b>'+pct(r[k])+"</b></td>";
-      } else { h += "<td>"+r[k]+"</td>"; }
+  for(const g of groupList){
+    h += '<tr class="grouphead"><td colspan="'+(COLS.length+1)+'">'+esc(g.name)+
+         ' <span class="sub">avg F1 '+pct(g.avgF1)+'% over '+g.runs.length+' run'+(g.runs.length==1?"":"s")+'</span></td></tr>';
+    for(const r of g.runs){
+      h += "<tr>";
+      for(const [k,l] of COLS){
+        if(k=="name"){ h += '<td class="name">'+esc(r.name)+"</td>"; }
+        else if(["precision","recall","f1"].includes(k)){
+          const w=(100*r[k]).toFixed(0), best = k=="f1"&&r.f1==bestF1?" best":"";
+          h += '<td class="bar'+best+'"><span style="width:'+w+'%"></span><b>'+pct(r[k])+"</b></td>";
+        } else { h += "<td>"+r[k]+"</td>"; }
+      }
+      h += '<td class="formula">2\\u00b7'+r.tp+'/(2\\u00b7'+r.tp+'+'+r.fp+'+'+r.fn+') = '+pct(r.f1)+'%</td></tr>';
     }
-    h += '<td class="formula">2\\u00b7'+r.tp+'/(2\\u00b7'+r.tp+'+'+r.fp+'+'+r.fn+') = '+pct(r.f1)+'%</td></tr>';
   }
   const t = document.getElementById("summary");
   t.innerHTML = h + "</tbody>";
@@ -282,10 +294,13 @@ def build(run_dirs, out: Path | None = None) -> Path:
 
 def main():
     parser = argparse.ArgumentParser(prog="leaderboard")
-    parser.add_argument("run_dirs", nargs="+", help="Run bundle directories to compare")
+    parser.add_argument("run_dirs", nargs="?", help="Run bundle directories to compare")
     parser.add_argument("--out", default=None, help="Output HTML (default artifacts/leaderboard.html)")
     args = parser.parse_args()
-    out = build(args.run_dirs, Path(args.out) if args.out else None)
+    run_dirs = args.run_dirs
+    if not args.run_dirs:
+        run_dirs = sorted((p.parent for p in (ARTIFACTS / "runs").glob("**/eval.json")), key=lambda p: p.name)
+    out = build(run_dirs, Path(args.out) if args.out else None)
     print(f"wrote {out}  ({out.stat().st_size // 1024} KB)")
 
 
