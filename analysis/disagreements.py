@@ -16,20 +16,26 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.paths import ARTIFACTS, RUNS_DIR
+from core.evaluation import FIELD_ERROR_PENALTY
 
 AGREE_FRACTION = 0.25   # keep a good chunk of the agreements (for FFR + inter-annotator ceiling)
 SEED = 123
 
 
-def metric_verdicts(ext_dir: Path) -> dict[tuple[str, int], str]:
-    """(doi, extracted_index) -> correct/incorrect, from the metric's labels."""
+def metric_labels(ext_dir: Path) -> dict[tuple[str, int], dict]:
+    """(doi, extracted_index) -> the metric's full label (verdict, reason, per-field diffs)."""
     out = {}
     for lab in json.loads((ext_dir / "labels.json").read_text(encoding="utf-8")):
-        i = lab.get("extracted_index")
-        if i is None:                       # FN: no extracted record to judge
-            continue
-        out[(lab["doi"], i)] = "correct" if lab["verdict"] == "TP" else "incorrect"
+        if lab.get("extracted_index") is not None:      # skip FN (no extracted record)
+            out[(lab["doi"], lab["extracted_index"])] = lab
     return out
+
+
+def metric_why(lab: dict) -> tuple[str, list[dict]]:
+    """The metric's reason + the fields where its matched curated record differs from the record."""
+    diffs = [{"field": f, "curated": c["curated"], "extracted": c["extracted"]}
+             for f, c in lab.get("fields", {}).items() if c.get("penalty", 0) >= FIELD_ERROR_PENALTY]
+    return lab.get("reason", ""), diffs
 
 
 def main():
@@ -44,7 +50,7 @@ def main():
 
     split = json.loads((ARTIFACTS / "gold" / "split.json").read_text())
     split_of = {doi: "dev" for doi in split["dev"]} | {doi: "test" for doi in split["test"]}
-    metric = metric_verdicts(ext_dir)
+    metric = metric_labels(ext_dir)
     records = {json.loads(f.read_text())["doi"]: json.loads(f.read_text())["records"]
                for f in (ext_dir / "extractions").glob("*.json")}
 
@@ -54,16 +60,19 @@ def main():
         for v in d["verdicts"]:
             if not v.get("parsed_ok"):
                 continue
-            key = (d["doi"], v["extracted_index"])
-            if key not in metric:
+            lab = metric.get((d["doi"], v["extracted_index"]))
+            if lab is None:
                 continue
+            verdict = "correct" if lab["verdict"] == "TP" else "incorrect"
+            reason, diffs = metric_why(lab)
             entry = {"run": ext_run, "doi": d["doi"], "split": split_of.get(d["doi"], "?"),
                      "extracted_index": v["extracted_index"],
                      "record": records[d["doi"]][v["extracted_index"]],
-                     "metric": metric[key], "judge": v["verdict"],
+                     "metric": verdict, "metric_reason": reason, "metric_diffs": diffs,
+                     "judge": v["verdict"],
                      "judge_critique": v["critique"], "judge_bad_fields": v["bad_fields"],
                      "human": None, "note": ""}
-            (disagree if v["verdict"] != metric[key] else agree).append(entry)
+            (disagree if v["verdict"] != verdict else agree).append(entry)
 
     rng = random.Random(SEED)
     control = rng.sample(agree, round(AGREE_FRACTION * len(agree)))

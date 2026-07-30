@@ -78,6 +78,7 @@ TEMPLATE = """<!doctype html>
   #reveal { margin-top: 12px; }
   #graders { background: #f5f8ff; border: 1px solid #d7e3ff; border-radius: 6px;
              padding: 8px 10px; font-size: 12px; line-height: 1.5; margin-top: 8px; }
+  .mdiff { color: #b04a5a; font-size: 11px; margin: 3px 0; }
   .doi { font-size: 12px; color: #777; margin-bottom: 8px; }
   h4 { margin: 10px 0 4px; font-size: 13px; }
   input#who { font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 5px; width: 130px; }
@@ -139,8 +140,12 @@ function render(){
     '<div class="fields">' + rows + "</div>" +
     '<h4>Is this record a correct extraction from this paper?</h4>' +
     '<div class="reminder">Judge as a chemist: would you accept this row into a database as an ' +
-      'accurate rendering of this experiment? Base it on your own chemical judgment \\u2014 e.g. ' +
-      'whether a numerical difference actually matters \\u2014 not on any fixed tolerance or rule.</div>' +
+      'accurate rendering of this experiment? Use your own chemical judgment, not a fixed rule. Keep in mind:' +
+      '<ul style="margin:5px 0 0;padding-left:18px">' +
+        '<li>Only <b>this-work</b> experiments count \\u2014 a literature / cited-reference row is incorrect.</li>' +
+        '<li>The <b>catalyst must be the right substance</b> \\u2014 a wrong catalyst is a different experiment (incorrect), even if the numbers match.</li>' +
+        '<li><b>Values:</b> a small rounding difference is fine; a materially wrong value, or a value the paper clearly reports left blank, is a problem \\u2014 your call whether it is fatal.</li>' +
+      '</ul></div>' +
     '<div class="verdictrow">' +
       '<button id="btn-correct" class="' + (a.human==="correct"?"chosen-correct":"") + '">correct</button>' +
       '<button id="btn-incorrect" class="' + (a.human==="incorrect"?"chosen-incorrect":"") + '">incorrect</button>' +
@@ -151,7 +156,13 @@ function render(){
       (done ? '<button id="btn-reveal">' + (a.revealed?"graders shown below":"reveal graders") + "</button>" :
               '<span class="muted" style="font-size:12px">answer first to unlock the graders\\u2019 verdicts</span>') +
       (done && a.revealed ?
-        '<div id="graders"><b>metric:</b> ' + esc(e.metric) + ' \\u00b7 <b>judge:</b> ' + esc(e.judge) +
+        '<div id="graders"><b>metric:</b> ' + esc(e.metric) +
+        (e.metric_reason ? ' \\u2014 <i>' + esc(e.metric_reason) + "</i>" : "") +
+        (e.metric_diffs && e.metric_diffs.length ?
+          '<div class="mdiff">metric matched a curated row differing here (curated \\u2192 record): ' +
+          e.metric_diffs.map(d => esc(d.field) + " " + fmt(d.curated) + " \\u2192 " + fmt(d.extracted)).join(", ") +
+          "</div>" : "") +
+        ' \\u00b7 <b>judge:</b> ' + esc(e.judge) +
         (e.judge_bad_fields && e.judge_bad_fields.length ? ' \\u00b7 bad: ' + esc(e.judge_bad_fields.join(", ")) : "") +
         '<br><b>judge critique:</b> ' + esc(e.judge_critique || "") + "</div>" : "") +
     "</div>";
