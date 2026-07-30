@@ -53,6 +53,13 @@ def construct_messages(rubric: str, full_text: str, records: list[dict]) -> list
 
 
 @weave.op(postprocess_output=lambda out: {"n": len(out[0].verdicts) if out and out[0] else 0})
+def cost(resp) -> float:
+    try:
+        return float(litellm.completion_cost(completion_response=resp) or 0.0)
+    except Exception:
+        return float((getattr(resp, "_hidden_params", {}) or {}).get("response_cost") or 0.0)
+
+
 def run_llm(llm_params: dict, messages, **kwargs):
     try:
         resp = litellm.completion(messages=messages, response_format=BatchVerdict,
@@ -94,7 +101,7 @@ def run(env: dict, run_dir: Path, limit: int | None = None,
     meta = {"model": env["llm_params"]["model"], "extraction_run": hp["extraction_run"],
             "git_commit": bundle.git_commit(), "started_at": bundle.now_iso(),
             "n_papers": len(ext_files), "n_records": 0, "parse_failed_records": 0,
-            "prompt_tokens": 0, "completion_tokens": 0}
+            "prompt_tokens": 0, "completion_tokens": 0, "cost_usd": 0.0}
 
     for f in tqdm(ext_files, desc="judge"):
         if (run_dir / "verdicts" / f.name).exists():         # resume: never re-spend a call
@@ -121,10 +128,11 @@ def run(env: dict, run_dir: Path, limit: int | None = None,
         usage = resp.usage
         meta["prompt_tokens"] += getattr(usage, "prompt_tokens", 0) or 0
         meta["completion_tokens"] += getattr(usage, "completion_tokens", 0) or 0
+        meta["cost_usd"] += cost(resp)
         bundle.write_json(run_dir / "verdicts" / f.name, {"doi": doi, "verdicts": verdicts})
 
     meta["finished_at"] = bundle.now_iso()
     bundle.write_json(run_dir / "judge_meta.json", meta)
-    print(f"judge bundle -> {run_dir}  ({meta['n_papers']} papers = {meta['n_papers']} calls, "
-          f"{meta['n_records']} records, {meta['parse_failed_records']} unparseable)")
+    print(f"judge bundle -> {run_dir}  ({meta['n_papers']} papers, {meta['n_records']} records, "
+          f"{meta['parse_failed_records']} unparseable, ${meta['cost_usd']:.4f})")
     tracking.log_bundle(run_dir, stage="judge")
