@@ -144,7 +144,9 @@ function render(){
       '<ul style="margin:5px 0 0;padding-left:18px">' +
         '<li>Only <b>this-work</b> experiments count \\u2014 a literature / cited-reference row is incorrect.</li>' +
         '<li>The <b>catalyst must be the right substance</b> \\u2014 a wrong catalyst is a different experiment (incorrect), even if the numbers match.</li>' +
-        '<li><b>Values:</b> a small rounding difference is fine; a materially wrong value, or a value the paper clearly reports left blank, is a problem \\u2014 your call whether it is fatal.</li>' +
+        '<li><b>Values:</b> a small rounding difference is fine; a materially wrong value, or a value the paper clearly reports left blank, is a problem \\u2014 your call whether it matters.</li>' +
+        '<li><b>How many fields must be right is your call</b> \\u2014 decide whether <i>enough</i> of the important fields were correctly extracted for the row to count as a faithful record of the experiment.</li>' +
+        '<li><b>Ignore the source-chunk list.</b> Whether the record points at the right chunks is assessed separately \\u2014 it is NOT part of this correct/incorrect judgment.</li>' +
       '</ul></div>' +
     '<div class="verdictrow">' +
       '<button id="btn-correct" class="' + (a.human==="correct"?"chosen-correct":"") + '">correct</button>' +
