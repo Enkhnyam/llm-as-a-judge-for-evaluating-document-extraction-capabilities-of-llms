@@ -294,12 +294,11 @@ def build(run_dirs, out: Path | None = None) -> Path:
 
 def main():
     parser = argparse.ArgumentParser(prog="leaderboard")
-    parser.add_argument("run_dirs", nargs="?", help="Run bundle directories to compare")
+    parser.add_argument("run_dirs", nargs="*", help="Run bundle dirs (default: every bundle with an eval.json)")
     parser.add_argument("--out", default=None, help="Output HTML (default artifacts/leaderboard.html)")
     args = parser.parse_args()
-    run_dirs = args.run_dirs
-    if not args.run_dirs:
-        run_dirs = sorted((p.parent for p in (ARTIFACTS / "runs").glob("**/eval.json")), key=lambda p: p.name)
+    run_dirs = args.run_dirs or sorted(
+        (p.parent for p in (ARTIFACTS / "runs").glob("**/eval.json")), key=lambda p: p.name)
     out = build(run_dirs, Path(args.out) if args.out else None)
     print(f"wrote {out}  ({out.stat().st_size // 1024} KB)")
 

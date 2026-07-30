@@ -1,11 +1,12 @@
 """Blind adjudication UI for a worklist -> artifacts/gold/adjudicate_<name>.html.
 
-Left panel: the paper's chunks with the record's source chunks highlighted.
-Right panel: ONE record at a time, no grader verdicts visible. You answer
-correct/incorrect + a note; only then can you reveal what metric and judge said.
-Entries are shuffled so you cannot tell disagreements from agreement controls.
-Progress is saved in the browser (localStorage); Export downloads the labels —
-save/merge the download into artifacts/gold/adjudication.json.
+Self-contained (paper text + entries embedded) so it can be emailed to a reviewer.
+Left panel: the paper's chunks with the record's source chunks highlighted. Right panel:
+ONE record at a time, no grader verdicts visible — the reviewer answers correct/incorrect
++ a note as a chemist, and only then may reveal what the metric/judge said. Entries are
+shuffled so disagreements can't be told from agreements. Progress and name persist in the
+browser (localStorage); Export downloads the labels tagged with the reviewer's name, so two
+reviewers' files can be compared for inter-annotator agreement.
 
     python analysis/adjudicate.py artifacts/gold/worklist_judge_mistral.json
 """
@@ -21,8 +22,6 @@ from core.paths import ARTIFACTS, data_path
 from core.utils import doi_to_filename
 
 SEED = 123
-CATEGORIES = ["name-equivalence", "curation-gap", "numeric", "hallucination",
-              "missed-condition", "boundary/this-work", "other"]
 
 
 def build_data(worklist_path: Path) -> dict:
@@ -34,8 +33,7 @@ def build_data(worklist_path: Path) -> dict:
         if e["doi"] not in papers:
             text = (md_dir / doi_to_filename(e["doi"], "md")).read_text(encoding="utf-8")
             papers[e["doi"]] = parse_chunks(text)
-    return {"name": worklist_path.stem, "categories": CATEGORIES,
-            "entries": entries, "papers": papers}
+    return {"name": worklist_path.stem, "entries": entries, "papers": papers}
 
 
 TEMPLATE = """<!doctype html>
@@ -82,6 +80,9 @@ TEMPLATE = """<!doctype html>
              padding: 8px 10px; font-size: 12px; line-height: 1.5; margin-top: 8px; }
   .doi { font-size: 12px; color: #777; margin-bottom: 8px; }
   h4 { margin: 10px 0 4px; font-size: 13px; }
+  input#who { font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 5px; width: 130px; }
+  .reminder { background: #fff8e6; border: 1px solid #f0dca0; border-radius: 6px;
+              padding: 7px 10px; font-size: 12px; line-height: 1.45; color: #5a4a1a; margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -90,6 +91,7 @@ TEMPLATE = """<!doctype html>
   <button id="next">&#8594;</button>
   <span id="progress"></span>
   <span style="flex:1"></span>
+  <label style="font-size:12px;color:#666">your name <input id="who" placeholder="e.g. Prof. X"></label>
   <button id="export" class="primary">Export labels</button>
 </header>
 <div class="container">
@@ -106,7 +108,7 @@ let i = 0;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function fmt(v){return (v===null||v===undefined)?'<span class="muted">\\u2014</span>':esc(v);}
 function save(){ localStorage.setItem(KEY, JSON.stringify(answers)); }
-function aid(e){ return e.doi + "#" + e.extracted_index; }
+function aid(e){ return e.run + "|" + e.doi + "#" + e.extracted_index; }
 
 function render(){
   const e = DATA.entries[i];
@@ -136,16 +138,15 @@ function render(){
     ' \\u00b7 ' + (e.record.source_chunk_ids||[]).length + ' source chunk(s) highlighted</div>' +
     '<div class="fields">' + rows + "</div>" +
     '<h4>Is this record a correct extraction from this paper?</h4>' +
+    '<div class="reminder">Judge as a chemist: would you accept this row into a database as an ' +
+      'accurate rendering of this experiment? Base it on your own chemical judgment \\u2014 e.g. ' +
+      'whether a numerical difference actually matters \\u2014 not on any fixed tolerance or rule.</div>' +
     '<div class="verdictrow">' +
       '<button id="btn-correct" class="' + (a.human==="correct"?"chosen-correct":"") + '">correct</button>' +
       '<button id="btn-incorrect" class="' + (a.human==="incorrect"?"chosen-incorrect":"") + '">incorrect</button>' +
     "</div>" +
-    '<h4>Why (one sentence — name the deciding field)</h4>' +
+    '<h4>Why (one sentence \\u2014 name the deciding field)</h4>' +
     '<textarea id="note">' + esc(a.note || "") + "</textarea>" +
-    '<h4>Category</h4>' +
-    '<select id="cat"><option value="">\\u2014</option>' +
-      DATA.categories.map(c => '<option' + (a.category===c?" selected":"") + ">" + c + "</option>").join("") +
-    "</select>" +
     '<div id="reveal">' +
       (done ? '<button id="btn-reveal">' + (a.revealed?"graders shown below":"reveal graders") + "</button>" :
               '<span class="muted" style="font-size:12px">answer first to unlock the graders\\u2019 verdicts</span>') +
@@ -158,7 +159,6 @@ function render(){
   document.getElementById("btn-correct").onclick = () => { setAns("correct"); };
   document.getElementById("btn-incorrect").onclick = () => { setAns("incorrect"); };
   document.getElementById("note").onchange = ev => { upd({note: ev.target.value}); };
-  document.getElementById("cat").onchange = ev => { upd({category: ev.target.value}); };
   const rb = document.getElementById("btn-reveal");
   if (rb) rb.onclick = () => { upd({revealed: true}); render(); };
 
@@ -168,17 +168,24 @@ function render(){
 function upd(patch){ answers[aid(DATA.entries[i])] = {...(answers[aid(DATA.entries[i])]||{}), ...patch}; save(); }
 function setAns(v){ upd({human: v}); render(); }
 
+const who = document.getElementById("who");
+who.value = localStorage.getItem(KEY + "_who") || "";
+who.onchange = () => localStorage.setItem(KEY + "_who", who.value);
+
 document.getElementById("prev").onclick = () => { if (i > 0) { i--; render(); } };
 document.getElementById("next").onclick = () => { if (i < DATA.entries.length - 1) { i++; render(); } };
 document.getElementById("export").onclick = () => {
+  const name = who.value.trim();
   const out = DATA.entries.map(e => {
     const a = answers[aid(e)] || {};
-    return {...e, human: a.human ?? null, note: a.note || "", category: a.category || ""};
+    return {...e, human: a.human ?? null, note: a.note || "", labeled_by: name};
   });
   const blob = new Blob([JSON.stringify(out, null, 2)], {type: "application/json"});
   const url = URL.createObjectURL(blob);
   const a2 = document.createElement("a");
-  a2.href = url; a2.download = "adjudication_" + DATA.name + ".json"; a2.click();
+  a2.href = url;
+  a2.download = "adjudication_" + DATA.name + (name ? "_" + name.replace(/\\W+/g, "") : "") + ".json";
+  a2.click();
   URL.revokeObjectURL(url);
 };
 render();
