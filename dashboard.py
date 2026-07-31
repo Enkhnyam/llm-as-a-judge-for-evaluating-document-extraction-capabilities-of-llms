@@ -114,10 +114,15 @@ def build() -> Path:
     rubric_text = prompt_path("judge_rubric_v2.txt").read_text(encoding="utf-8")
 
     adj = sorted(glob.glob(str(ARTIFACTS / "gold/adjudicate_worklist_judge_azure.html")))
-    adj_link = ("<p>Supervisor adjudication (gpt-5.6-sol): "
-                + " ".join(f"<a href='gold/{Path(a).name}'>{Path(a).name}</a>" for a in adj)
-                + " &nbsp;<span class='src'>kept as a standalone file — it saves the reviewer's progress "
-                  "in the browser, which an embedded copy can't do.</span></p>") if adj else ""
+    adj_link = ("<div class='caveat'><b>Adjudication file — this is what you send to a reviewer:</b> "
+                + ", ".join(f"<code>artifacts/gold/{Path(a).name}</code>" for a in adj)
+                + ". One self-contained file (paper text + records embedded) that saves the reviewer's progress in "
+                  "their browser — so it must be opened <b>as its own file</b> from disk (double-click it, or email "
+                  "that file). It cannot be embedded here: an embedded copy gets no real origin and its save/export "
+                  "breaks. The link below only resolves while this dashboard is browsed <i>in place</i> with its "
+                  "<code>gold/</code> folder beside it — a lone copy of index.html cannot reach it. "
+                + " ".join(f"<a href='gold/{Path(a).name}'>open in-place &rarr;</a>" for a in adj)
+                + "</div>") if adj else ""
 
     inspect = sorted(glob.glob(str(ARTIFACTS / "inspect_*.html")))
     embeds = embed("leaderboard.html", ARTIFACTS / "leaderboard.html",
