@@ -17,14 +17,19 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from core.evaluation import METRIC_ALGO_TEXT
 from core.inspect_view import parse_chunks
-from core.paths import ARTIFACTS, data_path
+from core.paths import ARTIFACTS, data_path, prompt_path
 from core.utils import doi_to_filename
 
 SEED = 123
 
 
-def build_data(worklist_path: Path) -> dict:
+def aid(e: dict) -> str:
+    return f'{e["run"]}|{e["doi"]}#{e["extracted_index"]}'
+
+
+def build_data(worklist_path: Path, seed_path: Path | None) -> dict:
     entries = json.loads(worklist_path.read_text(encoding="utf-8"))
     random.Random(SEED).shuffle(entries)          # blind: mix disagreements & controls
     md_dir = data_path("curated_data_markdown_by_doi")
@@ -33,7 +38,12 @@ def build_data(worklist_path: Path) -> dict:
         if e["doi"] not in papers:
             text = (md_dir / doi_to_filename(e["doi"], "md")).read_text(encoding="utf-8")
             papers[e["doi"]] = parse_chunks(text)
-    return {"name": worklist_path.stem, "entries": entries, "papers": papers}
+    seed = {}
+    if seed_path:
+        for e in json.loads(seed_path.read_text(encoding="utf-8")):
+            if e.get("human"):
+                seed[aid(e)] = {"human": e["human"], "note": e.get("note", "")}
+    return {"name": worklist_path.stem, "entries": entries, "papers": papers, "seed": seed}
 
 
 TEMPLATE = """<!doctype html>
@@ -72,8 +82,8 @@ TEMPLATE = """<!doctype html>
   .verdictrow button { flex: 1; padding: 10px; font-size: 14px; }
   button.chosen-correct { background: #2e9e5b; color: #fff; border-color: #2e9e5b; }
   button.chosen-incorrect { background: #d13b3b; color: #fff; border-color: #d13b3b; }
-  textarea { width: 100%; height: 56px; font: inherit; padding: 6px; border: 1px solid #ccc;
-             border-radius: 5px; }
+  textarea { width: 100%; height: 92px; font: inherit; padding: 6px; border: 1px solid #ccc;
+             border-radius: 5px; resize: vertical; }
   select { font-size: 13px; padding: 4px; }
   #reveal { margin-top: 12px; }
   #graders { background: #f5f8ff; border: 1px solid #d7e3ff; border-radius: 6px;
@@ -84,6 +94,13 @@ TEMPLATE = """<!doctype html>
   input#who { font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 5px; width: 130px; }
   .reminder { background: #fff8e6; border: 1px solid #f0dca0; border-radius: 6px;
               padding: 7px 10px; font-size: 12px; line-height: 1.45; color: #5a4a1a; margin: 8px 0; }
+  .reminder a { color: #7a5a10; }
+  #refs { border-bottom: 1px solid #ddd; background: #fcfcfc; padding: 3px 12px; }
+  #refs summary { cursor: pointer; color: #555; font-size: 12px; padding: 5px 0; }
+  #refs .refbody { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 8px 0 12px; }
+  #refs h5 { margin: 0 0 4px; font-size: 12px; }
+  #refs pre { white-space: pre-wrap; background: #f6f8fa; border: 1px solid #e4e4e4; border-radius: 6px;
+              padding: 10px; font-size: 11px; line-height: 1.4; max-height: 320px; overflow: auto; margin: 0; }
 </style>
 </head>
 <body>
@@ -95,6 +112,13 @@ TEMPLATE = """<!doctype html>
   <label style="font-size:12px;color:#666">your name <input id="who" placeholder="e.g. Prof. X"></label>
   <button id="export" class="primary">Export labels</button>
 </header>
+<details id="refs">
+  <summary>Reference: how the two automated graders decide (your judgment stays independent of these)</summary>
+  <div class="refbody">
+    <div><h5>Metric grader (deterministic)</h5><pre>__METRIC_ALGO__</pre></div>
+    <div><h5>Judge grader (LLM) &mdash; the rubric it was given</h5><pre>__RUBRIC__</pre></div>
+  </div>
+</details>
 <div class="container">
   <div id="left" class="panel"></div>
   <div id="right" class="panel"></div>
@@ -105,6 +129,11 @@ const DATA = JSON.parse(document.getElementById("data").textContent);
 const KEY = "adjudicate_" + DATA.name;
 let answers = JSON.parse(localStorage.getItem(KEY) || "{}");
 let i = 0;
+
+const SEED = DATA.seed || {};                 // pre-fill prior answers (e.g. the author's pilot)
+let _seeded = false;
+for (const k in SEED) { if (!(k in answers)) { answers[k] = {...SEED[k]}; _seeded = true; } }
+if (_seeded) localStorage.setItem(KEY, JSON.stringify(answers));
 
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function fmt(v){return (v===null||v===undefined)?'<span class="muted">\\u2014</span>':esc(v);}
@@ -147,7 +176,9 @@ function render(){
         '<li><b>Values:</b> a small rounding difference is fine; a materially wrong value, or a value the paper clearly reports left blank, is a problem \\u2014 your call whether it matters.</li>' +
         '<li><b>How many fields must be right is your call</b> \\u2014 decide whether <i>enough</i> of the important fields were correctly extracted for the row to count as a faithful record of the experiment.</li>' +
         '<li><b>Ignore the source-chunk list.</b> Whether the record points at the right chunks is assessed separately \\u2014 it is NOT part of this correct/incorrect judgment.</li>' +
-      '</ul></div>' +
+      '</ul>' +
+      '<div style="margin-top:5px">More detail: <a href="#refs" id="refslink">how the metric &amp; the judge each decide \\u2192</a></div>' +
+      '</div>' +
     '<div class="verdictrow">' +
       '<button id="btn-correct" class="' + (a.human==="correct"?"chosen-correct":"") + '">correct</button>' +
       '<button id="btn-incorrect" class="' + (a.human==="incorrect"?"chosen-incorrect":"") + '">incorrect</button>' +
@@ -174,6 +205,9 @@ function render(){
   document.getElementById("note").onchange = ev => { upd({note: ev.target.value}); };
   const rb = document.getElementById("btn-reveal");
   if (rb) rb.onclick = () => { upd({revealed: true}); render(); };
+  const rl = document.getElementById("refslink");
+  if (rl) rl.onclick = ev => { ev.preventDefault(); const r = document.getElementById("refs");
+                               r.open = true; r.scrollIntoView({block: "start"}); };
 
   const n = DATA.entries.length, k = Object.values(answers).filter(x => x.human !== undefined).length;
   document.getElementById("progress").textContent = "entry " + (i+1) + "/" + n + " \\u00b7 " + k + " labeled";
@@ -211,12 +245,19 @@ render();
 def main():
     parser = argparse.ArgumentParser(prog="adjudicate")
     parser.add_argument("worklist", help="Worklist JSON from analysis/disagreements.py")
+    parser.add_argument("--rubric", default=None, help="Judge rubric shown in the reference panel")
+    parser.add_argument("--seed", default=None, help="Prior adjudication JSON to pre-fill (e.g. the pilot)")
     args = parser.parse_args()
 
-    data = build_data(Path(args.worklist))
+    data = build_data(Path(args.worklist), Path(args.seed) if args.seed else None)
+    rubric = Path(args.rubric) if args.rubric else prompt_path("judge_rubric_v2.txt")
+    esc = lambda s: s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    html = (TEMPLATE.replace("__DATA__", blob)
+            .replace("__METRIC_ALGO__", esc(METRIC_ALGO_TEXT))
+            .replace("__RUBRIC__", esc(rubric.read_text(encoding="utf-8"))))
     out = ARTIFACTS / "gold" / f"adjudicate_{data['name']}.html"
-    out.write_text(TEMPLATE.replace("__DATA__", blob), encoding="utf-8")
+    out.write_text(html, encoding="utf-8")
     print(f"wrote {out}  ({len(data['entries'])} entries, {len(data['papers'])} papers, "
           f"{out.stat().st_size // 1024} KB)")
 

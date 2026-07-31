@@ -12,7 +12,8 @@ import glob
 from pathlib import Path
 from collections import Counter
 
-from core.paths import ARTIFACTS, RUNS_DIR
+from core.evaluation import METRIC_ALGO_TEXT
+from core.paths import ARTIFACTS, RUNS_DIR, prompt_path
 
 FROZEN = "openai_oss_120b_prompt_v2/openai_oss_120b_n4_r1"
 
@@ -55,7 +56,7 @@ def judge_rows(metric: dict) -> list[dict]:
                 key = (vd["doi"], v["extracted_index"])
                 if key in metric and metric[key] != v["verdict"]:
                     comp[(metric[key], v["verdict"])] += 1
-        rows.append({"name": d.name, "model": m["model"], "cost": m.get("cost_usd", 0.0),
+        rows.append({"name": d.parent.name, "model": m["model"], "cost": m.get("cost_usd", 0.0),
                      "correct": vc["correct"], "incorrect": vc["incorrect"],
                      "rescue": comp[("incorrect", "correct")], "flag": comp[("correct", "incorrect")]})
     return rows
@@ -88,6 +89,7 @@ pre.prompt { background: #f6f8fa; border: 1px solid #e4e4e4; border-radius: 6px;
              white-space: pre-wrap; max-height: 340px; overflow: auto; }
 details { margin: 10px 0; } summary { cursor: pointer; padding: 4px 0; }
 iframe { width: 100%; height: 660px; border: 1px solid #ccc; border-radius: 6px; margin-top: 8px; }
+.graders2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 """
 
 
@@ -109,6 +111,7 @@ def build() -> Path:
         for j in judge_rows(metric))
 
     prompt_text = json.load(open(frozen / "config.json"))["harness_params"]["prompt"]
+    rubric_text = prompt_path("judge_rubric_v2.txt").read_text(encoding="utf-8")
 
     adj = sorted(glob.glob(str(ARTIFACTS / "gold/adjudicate_worklist_judge_azure.html")))
     adj_link = ("<p>Supervisor adjudication (gpt-5.6-sol): "
@@ -158,6 +161,13 @@ against the judge verdict, kept where they differ (analysis/disagreements.py).</
 (rescue = judge accepts what the metric rejected; flag = judge rejects what the metric accepted), NOT which
 grader is right. A rescue is a <i>candidate</i> metric false-failure — confirmed only after human adjudication.</div>
 {adj_link}
+
+<h2>3b. How each grader decides</h2>
+<div class='src'>The two graders whose agreement with the human expert we compare. Metric algorithm: core/evaluation.py; judge rubric: prompts/judge_rubric_v2.txt.</div>
+<div class='graders2'>
+<div><b>Metric grader (deterministic)</b><pre class='prompt'>{esc(METRIC_ALGO_TEXT)}</pre></div>
+<div><b>Judge grader (LLM) rubric — v2</b><pre class='prompt'>{esc(rubric_text)}</pre></div>
+</div>
 
 <h2>4. Detail views (embedded)</h2>
 {embeds}

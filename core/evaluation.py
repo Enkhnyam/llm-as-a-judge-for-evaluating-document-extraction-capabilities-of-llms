@@ -20,6 +20,32 @@ EVAL_FIELDS = [
 CATALYST_MISMATCH_COST = 10.0  # finite (not inf) so the assignment stays feasible
 FIELD_ERROR_PENALTY = 1.0      # a field counts as "wrong" once its penalty saturates
 
+METRIC_ALGO_TEXT = """\
+The metric scores the model's records against a hand-curated table for the SAME paper, with no
+understanding of chemistry — it is purely arithmetic:
+
+1. Matching. Within each paper it finds the single best one-to-one pairing of extracted records to
+   curated records (Hungarian assignment), minimizing total field disagreement.
+2. Per-field penalty, 0 = agree, 1 = wrong, over 10 fields:
+   - catalyst: string similarity (SequenceMatcher) >= 0.80 -> 0, else 1. This is TEXTUAL, not
+     chemical, so a synonym or a per-paper code can score as WRONG even when it is the same
+     substance. This is the metric's main blind spot.
+   - numeric fields: 0 if within 1% (or 0.01 absolute); otherwise relative-difference / 0.20,
+     capped at 1 (so ~20% off = fully wrong). One side missing = 1.
+3. Catalyst gate. If the catalyst strings are not similar enough, the pair cannot be a true match
+   (assignment cost forced high).
+4. Verdict. A matched pair is CORRECT (a true positive) only if the catalyst matches AND the
+   average penalty over the 10 fields < 0.30 — i.e. it tolerates roughly 2-3 fully-wrong fields
+   out of 10. An extracted record with no good curated match is a false positive; a curated
+   record with none is a false negative.
+5. Score. F1 = 2*TP / (2*TP + FP + FN).
+
+Frozen settings: tp_threshold 0.30, catalyst_threshold 0.80, numeric_tolerance 0.20.
+
+Why this matters for adjudication: the metric can call a row "incorrect" purely because a catalyst
+name did not string-match, or because a couple of numbers sit just outside 20% — not because the
+chemistry is actually wrong. Correcting exactly those calls is what your human judgment is for."""
+
 
 def normalize_value(value) -> str:
     if value is None:
