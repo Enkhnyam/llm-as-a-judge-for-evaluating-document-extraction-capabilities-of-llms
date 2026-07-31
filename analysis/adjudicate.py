@@ -174,6 +174,7 @@ function render(){
         '<li>Only <b>this-work</b> experiments count \\u2014 a literature / cited-reference row is incorrect.</li>' +
         '<li>The <b>catalyst must be the right substance</b> \\u2014 a wrong catalyst is a different experiment (incorrect), even if the numbers match.</li>' +
         '<li><b>Values:</b> a small rounding difference is fine; a materially wrong value, or a value the paper clearly reports left blank, is a problem \\u2014 your call whether it matters.</li>' +
+        '<li><b>Outcomes (yield / selectivity / conversion):</b> a single missing one is fine if the other two are present \\u2014 it is derivable (yield = conversion \\u00d7 selectivity). Two or more missing that the paper actually reports is a real gap. (A derivable mass from a stated wt%/ratio is still expected.)</li>' +
         '<li><b>How many fields must be right is your call</b> \\u2014 decide whether <i>enough</i> of the important fields were correctly extracted for the row to count as a faithful record of the experiment.</li>' +
         '<li><b>Ignore the source-chunk list.</b> Whether the record points at the right chunks is assessed separately \\u2014 it is NOT part of this correct/incorrect judgment.</li>' +
       '</ul>' +
@@ -250,7 +251,7 @@ def main():
     args = parser.parse_args()
 
     data = build_data(Path(args.worklist), Path(args.seed) if args.seed else None)
-    rubric = Path(args.rubric) if args.rubric else prompt_path("judge_rubric_v2.txt")
+    rubric = Path(args.rubric) if args.rubric else prompt_path("judge_rubric_v3.txt")
     esc = lambda s: s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     blob = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     html = (TEMPLATE.replace("__DATA__", blob)

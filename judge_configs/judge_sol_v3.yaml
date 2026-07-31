@@ -1,0 +1,16 @@
+run_name: judge_sol_v3
+
+# gpt-5.6-sol judge, rubric v3 (outcome-derivability), on the gpt-5.6-sol extraction.
+# Self-judging condition — paired with judge_oss_v3 it gives the self-preference signal.
+llm_params:
+  model: azure/gpt-5.6-sol
+  api_key: ${azure_key}
+  api_base: https://karim-api-resource.openai.azure.com
+  api_version: "2024-12-01-preview"
+  max_tokens: 16000
+
+harness_params:
+  rubric_file: judge_rubric_v3.txt
+  extraction_run: gpt56sol_prompt_v2/gpt56sol_n4_r1
+  curated_data_markdown_dir: curated_data_markdown_by_doi
+  output_dir: judge_v3

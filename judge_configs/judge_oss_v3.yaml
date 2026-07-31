@@ -1,0 +1,16 @@
+run_name: judge_oss_v3
+
+# gpt-5.6-sol judge, rubric v3 (outcome-derivability), on the FROZEN gpt-oss extraction.
+# Cross-model condition (judge != extractor) — the clean judge-validation side.
+llm_params:
+  model: azure/gpt-5.6-sol
+  api_key: ${azure_key}
+  api_base: https://karim-api-resource.openai.azure.com
+  api_version: "2024-12-01-preview"
+  max_tokens: 16000
+
+harness_params:
+  rubric_file: judge_rubric_v3.txt
+  extraction_run: openai_oss_120b_prompt_v2/openai_oss_120b_n4_r1
+  curated_data_markdown_dir: curated_data_markdown_by_doi
+  output_dir: judge_v3
