@@ -63,6 +63,126 @@ def judge_rows(metric: dict, ext_rel: str) -> list[dict]:
     return rows
 
 
+def _load_ext(ext_rel: str):
+    labs = {(l["doi"], l["extracted_index"]): l
+            for l in json.load(open(RUNS_DIR / ext_rel / "labels.json"))
+            if l.get("extracted_index") is not None}
+    recs = {}
+    for f in glob.glob(str(RUNS_DIR / ext_rel / "extractions/*.json")):
+        d = json.load(open(f))
+        for i, r in enumerate(d["records"]):
+            recs[(d["doi"], i)] = r
+    return labs, recs
+
+
+def _load_judge(ext_rel: str) -> dict:
+    for meta_f in glob.glob(str(RUNS_DIR / "judge_v3/*/judge_meta.json")):
+        d = Path(meta_f).parent
+        if json.load(open(d / "config.json"))["harness_params"]["extraction_run"] == ext_rel:
+            jv = {}
+            for f in glob.glob(str(d / "verdicts/*.json")):
+                vd = json.load(open(f))
+                for v in vd["verdicts"]:
+                    if v.get("parsed_ok"):
+                        jv[(vd["doi"], v["extracted_index"])] = v
+            return jv
+    return {}
+
+
+def _classify(ext_rel: str):
+    """Group every non-TP extracted record by why the metric flagged it + what the judge said."""
+    labs, recs = _load_ext(ext_rel)
+    jv = _load_judge(ext_rel)
+    syn, val, gap_real, gap_hall = [], [], [], []
+    for (doi, idx), lab in sorted(labs.items()):
+        if lab["verdict"] == "TP":
+            continue
+        v = jv.get((doi, idx), {})
+        jver = v.get("verdict", "?")
+        crit = esc((v.get("critique") or "")[:260])
+        bad = ", ".join(v.get("bad_fields", []))
+        if lab["verdict"] == "MISMATCH" and lab.get("reason") == "catalyst mismatch":
+            c = lab["fields"]["catalyst"]
+            syn.append(dict(doi=doi, idx=idx, cur=c["curated"], ext=c["extracted"], jver=jver, crit=crit))
+        elif lab["verdict"] == "MISMATCH":
+            diffs = "; ".join(f"{f}: {c['curated']}→{c['extracted']}"
+                              for f, c in lab.get("fields", {}).items() if c.get("penalty", 0) >= 1.0)
+            val.append(dict(doi=doi, idx=idx, diffs=diffs, jver=jver, crit=crit, bad=bad))
+        elif lab["verdict"] == "FP":
+            r = recs.get((doi, idx), {})
+            summ = (f"{r.get('catalyst','?')} | {r.get('temperature_c','?')}°C | "
+                    f"conv {r.get('conversion_percent')} / yield {r.get('yield_percent')} / sel {r.get('selectivity_percent')}")
+            (gap_real if jver == "correct" else gap_hall).append(dict(doi=doi, idx=idx, summ=summ, jver=jver, crit=crit))
+    return syn, val, gap_real, gap_hall
+
+
+def _det(title: str, headers: list, rows: list) -> str:
+    h = "".join(f"<th>{x}</th>" for x in headers)
+    body = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in rows)
+    return (f"<details><summary><b>{esc(title)}</b> ({len(rows)})</summary>"
+            f"<table><tr>{h}</tr>{body}</table></details>")
+
+
+def analysis_html(ext_rel: str) -> str:
+    from collections import Counter
+    syn, val, gap_real, gap_hall = _classify(ext_rel)
+    synr = sum(x["jver"] == "correct" for x in syn)
+    valr = sum(x["jver"] == "correct" for x in val)
+
+    def code(x):
+        return f"<code>{esc(str(x))}</code>"
+
+    tax = f"""
+<h2>4. Error taxonomy &mdash; every metric-flagged record, by cause</h2>
+<div class='src'>Each extracted record the metric did not accept, grouped by why, with the judge's verdict. Counts are paper-ready; expand a group to see and investigate the records.</div>
+<table>
+<tr><th>cause</th><th>records</th><th>judge rescued<div class='src'>says metric is wrong</div></th><th>judge upheld<div class='src'>says extraction is wrong</div></th></tr>
+<tr><td><b>catalyst identity</b> &mdash; metric string-match blind spot</td><td class='big'>{len(syn)}</td><td>{synr} ({synr/len(syn):.0%})</td><td>{len(syn)-synr}</td></tr>
+<tr><td><b>matched value error</b> &mdash; a field genuinely differs</td><td class='big'>{len(val)}</td><td>{valr}</td><td>{len(val)-valr}</td></tr>
+<tr><td><b>unmatched, judge says REAL</b> &mdash; curation likely missed it</td><td class='big'>{len(gap_real)}</td><td>{len(gap_real)}</td><td>0</td></tr>
+<tr><td><b>unmatched, judge says NOT in paper</b> &mdash; extraction over-reach</td><td class='big'>{len(gap_hall)}</td><td>0</td><td>{len(gap_hall)}</td></tr>
+</table>
+""" if (syn or val or gap_real or gap_hall) else ""
+
+    drill = ""
+    if syn:
+        drill += _det("catalyst identity: curated name vs paper/extracted name",
+                      ["doi", "e#", "curated catalyst", "extracted (paper's)", "judge", "judge critique"],
+                      [(esc(x["doi"]), x["idx"], code(x["cur"]), code(x["ext"]), x["jver"], x["crit"]) for x in syn])
+    if val:
+        drill += _det("matched value errors: what differs",
+                      ["doi", "e#", "curated→extracted diffs", "judge", "judge bad_fields", "judge critique"],
+                      [(esc(x["doi"]), x["idx"], code(x["diffs"]), x["jver"], esc(x["bad"]), x["crit"]) for x in val])
+    if gap_real:
+        drill += _det("unmatched the judge accepts as REAL experiments (candidates to ADD to curation)",
+                      ["doi", "e#", "extracted record", "judge critique"],
+                      [(esc(x["doi"]), x["idx"], esc(x["summ"]), x["crit"]) for x in gap_real])
+    if gap_hall:
+        drill += _det("unmatched the judge rejects as NOT in the paper (extraction over-reach)",
+                      ["doi", "e#", "extracted record", "judge critique"],
+                      [(esc(x["doi"]), x["idx"], esc(x["summ"]), x["crit"]) for x in gap_hall])
+
+    # per-paper curation to-do
+    dois = sorted({x["doi"] for x in syn + val + gap_real})
+    cn = Counter(x["doi"] for x in syn)
+    vn = Counter(x["doi"] for x in val)
+    gn = Counter(x["doi"] for x in gap_real)
+    cur_rows = "".join(
+        f"<tr><td>{esc(d)}</td><td>{cn.get(d,0) or ''}</td><td>{gn.get(d,0) or ''}</td><td>{vn.get(d,0) or ''}</td></tr>"
+        for d in sorted(dois, key=lambda d: -(cn.get(d,0)+gn.get(d,0)+vn.get(d,0))))
+    curation = f"""
+<h2>5. Curation review &mdash; which papers to fix, and how</h2>
+<div class='src'>Actionable from the taxonomy above. <b>Catalyst-name mismatches</b>: your curated name differs from the paper's own naming &mdash; normalise or add an alias (see the catalyst-identity drill-down for the exact pairs). <b>Missing experiments</b>: real this-work rows the judge found that curation lacks &mdash; verify and add. <b>Value diffs</b>: rows to double-check against the paper.</div>
+<table>
+<tr><th>paper (doi)</th><th>catalyst-name mismatches</th><th>missing-experiment candidates</th><th>value diffs to check</th></tr>
+{cur_rows}
+</table>
+<div class='src'>Sorted by total items needing attention. Empty cells = none in that category.</div>
+""" if dois else ""
+
+    return tax + drill + curation
+
+
 def embed(name: str, path: str, desc: str, cmd: str) -> str:
     content = Path(path).read_text(encoding="utf-8").replace("&", "&amp;").replace('"', "&quot;")
     return (f"<details open><summary><b>{esc(name)}</b> — {esc(desc)}"
@@ -116,6 +236,7 @@ def build(ext_rel: str, out_name: str, adj_name: str, label: str, show_prompt_st
 
     prompt_text = json.load(open(ext / "config.json"))["harness_params"]["prompt"]
     rubric_text = prompt_path("judge_rubric_v3.txt").read_text(encoding="utf-8")
+    analysis = analysis_html(ext_rel)
 
     adj_path = ARTIFACTS / "gold" / adj_name
     adj_link = ("<div class='caveat'><b>Adjudication file — this is what you send to a reviewer:</b> "
@@ -170,8 +291,9 @@ grader is right. A rescue is a <i>candidate</i> metric false-failure — confirm
 <div><b>Metric grader (deterministic)</b><pre class='prompt'>{esc(METRIC_ALGO_TEXT)}</pre></div>
 <div><b>Judge grader (LLM) rubric — v3</b><pre class='prompt'>{esc(rubric_text)}</pre></div>
 </div>
+{analysis}
 
-<h2>4. Detail views (embedded)</h2>
+<h2>6. Detail views (embedded)</h2>
 {embeds}
 """
     out = ARTIFACTS / out_name
