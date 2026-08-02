@@ -1,12 +1,18 @@
 """Build the adjudication worklist: join a judge bundle with its extraction bundle's
-metric verdicts over ALL papers, and write the cases a human should label — every
-metric<->judge disagreement plus a seeded sample of agreements. Each entry is tagged
-with its dev/test split so you can separate them after adjudication.
+metric verdicts over ALL papers, and write the cases a human should label.
 
-    python analysis/disagreements.py artifacts/runs/judge_mistral_v1/judge_mistral
+STRATIFIED sampling (so scarce expert time goes to the informative records — see DECISIONS.md
+part 8). We keep ALL discriminating disagreements (catalyst identity, value diffs, flags — few and
+precious), but SAMPLE two abundant/redundant strata:
+  - recall-gap disagreements (metric FP the judge accepts as a real experiment curation missed):
+    plentiful and repetitive -> a sample estimates the rate without dominating the worklist / kappa.
+  - agreements (both graders concur): a small control sample for the false-agreement rate and the
+    inter-annotator ceiling.
+
+    python analysis/disagreements.py artifacts/runs/judge_v3/judge_sol_v3
 
 Output: artifacts/gold/worklist_<judge_run>.json — entries pre-filled with everything
-except "human" and "note", which the expert fills in (see FINDINGS.md section 5).
+except "human" and "note", which the expert fills in.
 """
 import argparse
 import json
@@ -18,7 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.paths import ARTIFACTS, RUNS_DIR
 from core.evaluation import FIELD_ERROR_PENALTY
 
-AGREE_FRACTION = 0.25   # keep a good chunk of the agreements (for FFR + inter-annotator ceiling)
+RECALL_GAP_KEEP = 30    # sample of curation-miss disagreements (abundant + redundant); was: all
+AGREE_KEEP = 20         # small control sample of agreements; was: 25% of them
 SEED = 123
 
 
@@ -54,7 +61,7 @@ def main():
     records = {json.loads(f.read_text())["doi"]: json.loads(f.read_text())["records"]
                for f in (ext_dir / "extractions").glob("*.json")}
 
-    disagree, agree = [], []
+    recall, other, agree = [], [], []       # recall-gap disagreements / other disagreements / agreements
     for vf in sorted((judge_dir / "verdicts").glob("*.json")):
         d = json.loads(vf.read_text(encoding="utf-8"))
         for v in d["verdicts"]:
@@ -72,17 +79,24 @@ def main():
                      "judge": v["verdict"],
                      "judge_critique": v["critique"], "judge_bad_fields": v["bad_fields"],
                      "human": None, "note": ""}
-            (disagree if v["verdict"] != verdict else agree).append(entry)
+            if v["verdict"] != verdict:                                   # a disagreement
+                # curation-miss = an unmatched extracted record (metric FP) the judge accepts as real
+                is_recall_gap = lab["verdict"] == "FP" and v["verdict"] == "correct"
+                (recall if is_recall_gap else other).append(entry)
+            else:
+                agree.append(entry)
 
     rng = random.Random(SEED)
-    control = rng.sample(agree, round(AGREE_FRACTION * len(agree)))
-    worklist = disagree + control
+    recall_sample = rng.sample(recall, min(RECALL_GAP_KEEP, len(recall)))
+    control = rng.sample(agree, min(AGREE_KEEP, len(agree)))
+    worklist = other + recall_sample + control
 
     out = ARTIFACTS / "gold" / f"worklist_{judge_dir.name}.json"
     out.write_text(json.dumps(worklist, indent=2), encoding="utf-8")
     dev_n = sum(e["split"] == "dev" for e in worklist)
-    print(f"{len(disagree)} disagreements + {len(control)} agreement controls "
-          f"(of {len(agree)}) = {len(worklist)} entries  [dev {dev_n} / test {len(worklist)-dev_n}]\n-> {out}")
+    print(f"{len(other)} discriminating disagreements + {len(recall_sample)}/{len(recall)} recall-gap sample "
+          f"+ {len(control)}/{len(agree)} agreement controls = {len(worklist)} entries "
+          f"[dev {dev_n} / test {len(worklist)-dev_n}]\n-> {out}")
 
 
 if __name__ == "__main__":
