@@ -1,0 +1,17 @@
+run_name: judge_azure_sol
+
+# Same judge (gpt-5.6-sol) and same rubric v2 as the gpt-oss judge run (judge_azure_v2), pointed
+# at the gpt-5.6-sol extraction instead. This is the SELF-JUDGING condition (sol grades sol) — the
+# other side (sol grades gpt-oss) is judge_azure_v2. Comparing the two gives the self-preference signal.
+llm_params:
+  model: azure/gpt-5.6-sol
+  api_key: ${azure_key}
+  api_base: https://karim-api-resource.openai.azure.com
+  api_version: "2024-12-01-preview"
+  max_tokens: 16000
+
+harness_params:
+  rubric_file: judge_rubric_v2.txt
+  extraction_run: gpt56sol_prompt_v2/gpt56sol_n4_r1
+  curated_data_markdown_dir: curated_data_markdown_by_doi
+  output_dir: judge_azure_sol
