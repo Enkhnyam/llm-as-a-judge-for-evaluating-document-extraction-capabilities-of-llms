@@ -1,0 +1,17 @@
+run_name: judge_sol_v4
+
+# gpt-5.6-sol judge, rubric v4 (opaque-placeholder catalysts are incorrect), on the gpt-5.6-sol
+# extraction. Same everything as judge_sol_v3 except the rubric — so we re-score the SAME golden
+# set against v4 (records + human labels are reusable across judge configs). See DECISIONS.md part 12.
+llm_params:
+  model: azure/gpt-5.6-sol
+  api_key: ${azure_key}
+  api_base: https://karim-api-resource.openai.azure.com
+  api_version: "2024-12-01-preview"
+  max_tokens: 16000
+
+harness_params:
+  rubric_file: judge_rubric_v4.txt
+  extraction_run: gpt56sol_prompt_v2/gpt56sol_n4_r1
+  curated_data_markdown_dir: curated_data_markdown_by_doi
+  output_dir: judge_v4
