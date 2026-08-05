@@ -12,3 +12,6 @@ __pycache__/
 
 # local-only report
 /artifacts/checks_report.html
+
+# run logs
+/logs/
