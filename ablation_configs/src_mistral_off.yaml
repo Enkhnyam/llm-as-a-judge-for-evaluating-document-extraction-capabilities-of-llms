@@ -1,0 +1,25 @@
+run_name: src_mistral_off
+
+# source-tracking study, ARM=OFF (source-chunk section removed) -- mistral.
+# Same harness, prompt and seed as its counterpart -- only the source-tracking instruction differs.
+llm_params:
+  model: openai/mistral-small-4-119b-2603
+  api_key: ${openai_key}
+  api_base: https://chat.kiconnect.nrw/api/v1/
+  temperature: 1
+  max_tokens: 8192
+
+harness_params:
+  prompt_file: prompt_v2_nosource.txt
+  output_dir: src_mistral_off
+  curated_data_path: curated_data_json_by_doi.json
+  curated_data_markdown_dir: curated_data_markdown_by_doi
+  drop_source_chunks: true   # strip provenance from schema AND few-shot demos
+  max_workers: 3            # papers fanned out concurrently (I/O-bound)
+  n_shots: 4
+  shot_selection: random
+  seed: 123
+  evaluation:
+    tp_threshold: 0.3
+    catalyst_threshold: 0.8
+    numeric_tolerance: 0.2

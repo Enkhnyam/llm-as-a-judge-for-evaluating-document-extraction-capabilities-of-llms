@@ -236,7 +236,7 @@ def evaluate(curated_by_doi: dict[str, list[Experiment]],
     return result, labels
 
 def run(env, run_dir: Path) -> None:
-    from . import tracking, inspect_view   # lazy: keeps the metric importable without weave/markdown-it (for the deposit)
+    from . import tracking   # lazy: keeps the metric importable without weave (for the deposit)
     ev = env["harness_params"]["evaluation"]
     curated_json = data_path(env["harness_params"].get("curated_data_path", "curated_data_json_by_doi.json"))
     curated = load_curated(curated_json)
@@ -257,5 +257,4 @@ def run(env, run_dir: Path) -> None:
     print(f"eval -> P={result['precision']:.3f} R={result['recall']:.3f} "
           f"F1={result['f1']:.3f}  (TP={result['tp']} FP={result['fp']} FN={result['fn']})")
 
-    inspect_view.build(run_dir)
     tracking.log_bundle(run_dir, stage="eval")

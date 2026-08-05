@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
 
 class Experiment(BaseModel):
@@ -30,6 +30,22 @@ class Experiment(BaseModel):
 
 class ExtractionResponse(BaseModel):
     experiments: list[Experiment] = Field(default_factory=list)
+
+
+# Experiment minus provenance — the OFF arm of the source-tracking ablation. Built from Experiment
+# so the two arms can never drift apart. Turning source tracking off needs all three: the prompt
+# section removed, source_chunk_ids stripped from the few-shot demos (`drop_source_chunks` in
+# harness_params), and the field absent from the response schema — this model.
+ExperimentNoSource = create_model(
+    "ExperimentNoSource",
+    __config__=Experiment.model_config,
+    **{name: (f.annotation, f) for name, f in Experiment.model_fields.items()
+       if name != "source_chunk_ids"},
+)
+
+
+class ExtractionResponseNoSource(BaseModel):
+    experiments: list[ExperimentNoSource] = Field(default_factory=list)
 
 
 def load_curated(path: str | Path) -> dict[str, list[Experiment]]:

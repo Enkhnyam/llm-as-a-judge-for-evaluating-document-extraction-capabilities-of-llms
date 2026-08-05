@@ -15,8 +15,14 @@ PROJECT = "llm-as-a-judge-for-evaluating-document-extraction-capabilities-of-llm
 
 
 def init_tracing(project: str = PROJECT) -> None:
-    """Turn on Weave call-tracing for the whole process (traces run_llm etc.)."""
-    weave.init(project)
+    """Turn on Weave call-tracing for the whole process (traces run_llm etc.).
+
+    Tracing is optional, so a missing or unreachable W&B endpoint must not stop a run.
+    """
+    try:
+        weave.init(project)
+    except Exception as exc:  # offline, no credentials, endpoint down
+        print(f"tracing disabled ({type(exc).__name__}); the run continues")
 
 
 def log_bundle(run_dir: Path, stage: str, project: str = PROJECT) -> None:

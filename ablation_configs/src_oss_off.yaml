@@ -1,5 +1,7 @@
-run_name: openai_oss_120b
+run_name: src_oss_off
 
+# source-tracking study, ARM=OFF (source-chunk section removed) -- oss.
+# Same harness, prompt and seed as its counterpart -- only the source-tracking instruction differs.
 llm_params:
   model: openai/gpt-oss-120b
   api_key: ${openai_key}
@@ -8,10 +10,12 @@ llm_params:
   max_tokens: 8192
 
 harness_params:
-  prompt_file: per_model/openai_oss_120b_prompt_v1.txt
-  output_dir: openai_oss_120b_prompt_v1
+  prompt_file: prompt_v2_nosource.txt
+  output_dir: src_oss_off
   curated_data_path: curated_data_json_by_doi.json
   curated_data_markdown_dir: curated_data_markdown_by_doi
+  drop_source_chunks: true   # strip provenance from schema AND few-shot demos
+  max_workers: 3            # papers fanned out concurrently (I/O-bound)
   n_shots: 4
   shot_selection: random
   seed: 123
@@ -19,4 +23,3 @@ harness_params:
     tp_threshold: 0.3
     catalyst_threshold: 0.8
     numeric_tolerance: 0.2
-
