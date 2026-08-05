@@ -1,3 +1,5 @@
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import argparse
 import copy
 
@@ -16,6 +18,7 @@ def main():
     parser.add_argument("--limit", type=int, default=None, help="Limit papers (debug/dry-run)")
     parser.add_argument("--prefix", default=None, help="run_name prefix (default: base name up to _n)")
     parser.add_argument("--force", action="store_true", help="Re-run conditions even if already complete")
+    parser.add_argument("--workers", type=int, default=None, help="Concurrent papers per run")
     args = parser.parse_args()
 
     base = sweep.load_config(ABLATION_CONFIGS_DIR / args.config)
@@ -31,6 +34,8 @@ def main():
         env = copy.deepcopy(base)
         # For ablation we set n_shots manually regardless of what is in the config file
         env["harness_params"]["n_shots"] = n
+        if args.workers:
+            env["harness_params"]["max_workers"] = args.workers
         env["run_name"] = f"{prefix}_n{n}_r{r}"
         run_dir = output_root(base["harness_params"].get("output_dir")) / env["run_name"]
 

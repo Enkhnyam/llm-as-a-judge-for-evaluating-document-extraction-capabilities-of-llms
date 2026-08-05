@@ -11,7 +11,6 @@ RUNS_DIR = ARTIFACTS / "runs"       # run bundles
 
 PROMPTS_DIR = ROOT / "prompts"
 ABLATION_CONFIGS_DIR = ROOT / "ablation_configs"
-BENCHMARK_CONFIGS_DIR = ROOT / "benchmark_configs"
 
 def resolve(path_like: str) -> Path:
     """A pushable, root-relative path (prompts, licenses.json)."""

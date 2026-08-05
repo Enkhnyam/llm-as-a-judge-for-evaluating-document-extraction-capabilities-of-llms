@@ -9,3 +9,6 @@ __pycache__/
 .venv/
 *.code-workspace
 *.md
+
+# local-only report
+/artifacts/checks_report.html

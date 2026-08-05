@@ -1,3 +1,5 @@
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))  # repo root importable
 import argparse
 import json
 import shutil
@@ -35,18 +37,16 @@ share-alike).
 """
 
 
-def find_runs(names: list[str] | None) -> list:
-    """Run bundles under RUNS_DIR (any dir holding a config.json), at any nesting depth."""
-    if names:
-        return [RUNS_DIR / n for n in names]
-    return sorted(p.parent for p in RUNS_DIR.rglob("config.json"))
+def find_runs(names: list[str]) -> list:
+    """The run bundles to publish, given as paths relative to runs/."""
+    return [RUNS_DIR / n for n in names]
 
 
 def main():
     parser = argparse.ArgumentParser(prog="deposit")
     parser.add_argument("--out", default="deposit", help="Output directory")
-    parser.add_argument("--runs", nargs="*", default=None,
-                        help="Run paths relative to runs/ (default: every bundle under runs/)")
+    parser.add_argument("--runs", nargs="+", required=True,
+                        help="Run paths relative to runs/, e.g. prompt_v2/run_n4_r1")
     args = parser.parse_args()
 
     run_dirs = [d for d in find_runs(args.runs) if (d / "config.json").exists()]
@@ -72,7 +72,7 @@ def main():
     (out / "core").mkdir()
     for f in (ROOT / "core").glob("*.py"):
         shutil.copy2(f, out / "core" / f.name)              # f is already the full path
-    shutil.copy2(ROOT / "eval_bundle.py", out / "eval_bundle.py")
+    shutil.copy2(ROOT / "cli" / "eval_bundle.py", out / "eval_bundle.py")
     shutil.copy2(ROOT / "pyproject.toml", out / "pyproject.toml")     # full deps for re-running the pipeline
     (out / "requirements.txt").write_text("numpy\nscipy\npydantic\n")  # minimal deps for eval_bundle.py
     (out / "README.md").write_text(README)
