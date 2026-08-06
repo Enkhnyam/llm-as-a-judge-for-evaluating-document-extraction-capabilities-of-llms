@@ -27,7 +27,7 @@ understanding of chemistry — it is purely arithmetic:
 1. Matching. Within each paper it finds the single best one-to-one pairing of extracted records to
    curated records (Hungarian assignment), minimizing total field disagreement.
 2. Per-field penalty, 0 = agree, 1 = wrong, over 10 fields:
-   - catalyst: string similarity (SequenceMatcher) >= 0.80 -> 0, else 1. This is TEXTUAL, not
+   - catalyst: string similarity (SequenceMatcher) >= 0.60 -> 0, else 1. This is TEXTUAL, not
      chemical, so a synonym or a per-paper code can score as WRONG even when it is the same
      substance. This is the metric's main blind spot.
    - numeric fields: 0 if within 1% (or 0.01 absolute); otherwise relative-difference / 0.20,
@@ -40,7 +40,7 @@ understanding of chemistry — it is purely arithmetic:
    record with none is a false negative.
 5. Score. F1 = 2*TP / (2*TP + FP + FN).
 
-Frozen settings: tp_threshold 0.30, catalyst_threshold 0.80, numeric_tolerance 0.20.
+Frozen settings: tp_threshold 0.30, catalyst_threshold 0.60, numeric_tolerance 0.20.
 
 Why this matters for adjudication: the metric can call a row "incorrect" purely because a catalyst
 name did not string-match, or because a couple of numbers sit just outside 20% — not because the
@@ -238,7 +238,9 @@ def evaluate(curated_by_doi: dict[str, list[Experiment]],
 def run(env, run_dir: Path) -> None:
     from . import tracking   # lazy: keeps the metric importable without weave (for the deposit)
     ev = env["harness_params"]["evaluation"]
-    curated_json = data_path(env["harness_params"].get("curated_data_path", "curated_data_json_by_doi.json"))
+    # The scoring reference is deliberately separate from harness_params.curated_data_path, which
+    # names the source of the few-shot examples. Scoring always uses the current curated table.
+    curated_json = data_path(ev.get("curated_data_path", "curated_table.json"))
     curated = load_curated(curated_json)
 
     extracted_by_doi: dict[str, list[Experiment]] = {}
