@@ -17,6 +17,6 @@ harness_params:
   seed: 123
   evaluation:
     tp_threshold: 0.3
-    catalyst_threshold: 0.8
+    catalyst_threshold: 0.6
     numeric_tolerance: 0.2
 

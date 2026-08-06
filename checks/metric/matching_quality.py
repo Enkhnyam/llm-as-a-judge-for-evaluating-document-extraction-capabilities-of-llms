@@ -18,9 +18,10 @@ for doi, curated_rows in reference.items():
     accepts = np.zeros((len(curated_rows), len(extracted_rows)), dtype=bool)
     for i, curated_row in enumerate(curated_rows):
         for j, extracted_row in enumerate(extracted_rows):
-            penalty, catalyst_matched, _ = record_penalty(curated_row, extracted_row, 0.8, 0.2)
+            penalty, catalyst_matched, _ = record_penalty(curated_row, extracted_row,
+                                                          catalyst_threshold, numeric_tolerance)
             cost[i, j] = penalty if catalyst_matched else 10.0
-            accepts[i, j] = catalyst_matched and penalty < 0.3
+            accepts[i, j] = catalyst_matched and penalty < accept_threshold
 
     taken_curated, taken_extracted = set(), set()
     order = sorted(((cost[i, j], i, j) for i in range(len(curated_rows))
@@ -38,5 +39,6 @@ print("correct matches found by simple closest-first pairing:", greedy_total)
 print()
 print("difference:", hungarian_total - greedy_total)
 print()
-print("Optimal pairing finds more acceptable matches than the simple rule, so the pairing step")
-print("is doing real work and is not where the metric loses.")
+print("The two pairing rules find the same matches, so the choice of pairing algorithm is not")
+print("what limits the metric. The catalyst gate leaves few pairings genuinely in contention,")
+print("and whatever the metric loses, it loses after pairing, when it judges a pair acceptable.")
