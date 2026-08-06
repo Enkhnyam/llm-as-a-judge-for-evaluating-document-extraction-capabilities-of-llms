@@ -1,5 +1,4 @@
 from _setup import *
-from _curation import as_curated, curated_table
 
 records = extracted()
 rows = {}

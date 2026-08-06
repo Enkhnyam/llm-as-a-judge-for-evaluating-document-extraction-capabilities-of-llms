@@ -1,5 +1,4 @@
 from _setup import *
-from _curation import as_curated, curated_table
 
 rows = {}
 for name, filename in [("as first curated", as_curated), ("corrected", curated_table)]:

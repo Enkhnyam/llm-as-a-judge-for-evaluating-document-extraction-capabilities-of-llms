@@ -14,8 +14,8 @@ extraction_run = "gpt56sol_prompt_v2/gpt56sol_n4_r1"
 judge_run = "judge_v4/judge_sol_v4"
 earlier_judge_run = "judge_v3/judge_sol_v3"
 
-as_curated = "curated_data_json_by_doi.json"   # the table as it was first curated, by hand
-curated_table = "curated_table.json"           # the same table, corrected
+as_curated = "curated_data_json_by_doi.json"
+curated_table = "curated_table.json"
 golden_set_file = ARTIFACTS / "gold/final/golden_set_judge_sol_v3.json"
 
 outcomes = ["yield_percent", "selectivity_percent", "conversion_percent"]

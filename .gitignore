@@ -7,3 +7,5 @@ __pycache__/
 *.code-workspace
 *.md
 checks/verify_additions.py
+checks/_curation.py
+checks/curation/

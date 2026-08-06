@@ -3,8 +3,6 @@ import sys
 from pathlib import Path
 
 SCRIPTS = [
-    "curation/build.py",
-
     "ground_truth/dataset.py",
     "ground_truth/curation_quality.py",
     "ground_truth/outcome_identity.py",
