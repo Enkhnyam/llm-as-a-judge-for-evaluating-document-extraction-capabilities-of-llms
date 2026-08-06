@@ -1,4 +1,3 @@
-"""What the labelled set contains and how it was selected."""
 import hashlib
 from _setup import *
 

@@ -1,8 +1,3 @@
-"""Matches the metric rejects because the two catalyst names differ.
-
-Saying the judge "rescued" these would assume the judge is right, which is the thing under test.
-Every one of them was labelled by the chemists, so their verdict is shown alongside.
-"""
 from _setup import *
 
 labels = scored()

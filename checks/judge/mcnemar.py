@@ -1,8 +1,3 @@
-"""Is the judge really better than the metric, or is it chance?
-
-Both graders scored the same records, so the comparison is paired: count the records where
-exactly one of them matched the chemists, and ask how surprising that split is.
-"""
 from scipy.stats import binomtest
 from _setup import *
 

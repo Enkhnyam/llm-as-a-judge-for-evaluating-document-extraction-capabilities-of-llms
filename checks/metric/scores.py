@@ -1,20 +1,19 @@
-"""Precision, recall and F1 of the extraction against each curated dataset.
-
-The original curation is what the graders were run against, so it is the reference behind the
-labelled set. The frozen curation adds experiments that were missing from it, so it scores the
-same extraction more fairly. Both are reported because they answer different questions.
-"""
 from _setup import *
+from _curation import as_curated, curated_table
 
 records = extracted()
-against_original = totals(curation=original)
-against_frozen = totals(curation=frozen)
-
-comparison = pd.DataFrame([against_original, against_frozen],
-                          index=["original curation", "frozen curation"])
-comparison = comparison[["precision", "recall", "f1", "tp", "fp", "fn"]]
+rows = {}
+for name, filename in [("as first curated", as_curated), ("corrected", curated_table)]:
+    result = totals(curation=filename)
+    rows[name] = {"experiments in table": len(curated(filename)),
+                  "precision": result["precision"], "recall": result["recall"],
+                  "f1": result["f1"], "correct": result["tp"],
+                  "false alarms": result["fp"], "missed": result["fn"]}
 
 print("run     ", extraction_run)
 print("records ", len(records), "extracted from", records.doi.nunique(), "papers")
 print()
-print(comparison.to_string(float_format="{:.3f}".format))
+print(pd.DataFrame(rows).T.to_string(float_format="{:.3f}".format))
+print()
+print("Same extraction in both rows. The second corrects data-entry errors in the table and")
+print("adds experiments it was missing.")

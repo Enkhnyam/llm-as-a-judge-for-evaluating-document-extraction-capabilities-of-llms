@@ -1,4 +1,3 @@
-"""Does giving the model more worked examples improve extraction?"""
 from _setup import *
 
 models = {"gpt-oss-120b": "shots_oss", "mistral-small": "shots_mistral"}

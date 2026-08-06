@@ -1,8 +1,3 @@
-"""Where the judge and the metric disagree with the chemists, and with each other.
-
-This is the paper's central comparison, so it is broken down three ways: each grader against the
-chemists, the two graders against each other, and the kind of record each one gets wrong.
-"""
 from _setup import *
 
 labelled = golden()

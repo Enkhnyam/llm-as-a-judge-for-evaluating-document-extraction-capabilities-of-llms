@@ -1,12 +1,8 @@
-"""Data-quality problems in the curated dataset, before and after cleaning.
-
-The original curation is kept because it is the reference the graders were run against. The
-frozen one is what scoring uses now: duplicated rows and rows with no measured outcome removed.
-"""
 from _setup import *
+from _curation import as_curated, curated_table
 
 report = {}
-for name, filename in [("original", original), ("frozen", frozen)]:
+for name, filename in [("as first curated", as_curated), ("corrected", curated_table)]:
     experiments = curated(filename)
     percentages = experiments[outcomes]
     amounts = experiments[fields].select_dtypes("number")
@@ -21,9 +17,9 @@ for name, filename in [("original", original), ("frozen", frozen)]:
     }
 
 measured = ["temperature_c", "reaction_time_min", "PET_amount_g", "catalyst_amount_g"]
-ranges = curated(frozen)[measured].agg(["min", "max"]).T
+ranges = curated(curated_table)[measured].agg(["min", "max"]).T
 
 print(pd.DataFrame(report).to_string())
 print()
-print("value ranges in the frozen curation:")
+print("value ranges:")
 print(ranges.to_string())

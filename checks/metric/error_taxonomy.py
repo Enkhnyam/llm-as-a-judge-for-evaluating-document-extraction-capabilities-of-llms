@@ -1,4 +1,3 @@
-"""Why the metric rejects records: the model's fault, or the metric's?"""
 from _setup import *
 
 labels = scored()

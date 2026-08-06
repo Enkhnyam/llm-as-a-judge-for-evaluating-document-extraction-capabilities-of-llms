@@ -1,8 +1,3 @@
-"""Agreement with the chemists, corrected for chance.
-
-Most records are correct, so a grader that rarely objects scores high raw agreement by default.
-Cohen's kappa subtracts the agreement you would expect from chance alone.
-"""
 from sklearn.metrics import cohen_kappa_score
 from _setup import *
 

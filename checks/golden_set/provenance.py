@@ -1,8 +1,3 @@
-"""How the extracted records became the set the chemists labelled.
-
-Labelling every record is not affordable, so the selection targets the records that tell the two
-graders apart, plus a control group where they agree.
-"""
 from _setup import *
 
 labels = scored()

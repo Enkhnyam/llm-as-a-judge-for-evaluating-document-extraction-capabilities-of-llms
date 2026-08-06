@@ -1,10 +1,9 @@
-"""Does the score depend on where the thresholds are set?"""
 from _setup import *
 
 def sweep(setting, values):
     results = {}
     for value in values:
-        results[value] = totals(curation=frozen, **{setting: value})
+        results[value] = totals(curation=curated_table, **{setting: value})
     table = pd.DataFrame(results).T
     table = table[["f1", "precision", "recall"]]
     table.index.name = setting

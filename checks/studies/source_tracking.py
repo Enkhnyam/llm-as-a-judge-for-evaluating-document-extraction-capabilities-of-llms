@@ -1,4 +1,3 @@
-"""Does asking the model to cite the text it used improve the values it extracts?"""
 from _setup import *
 
 for model_name in ["oss", "mistral"]:

@@ -1,8 +1,3 @@
-"""Does the curated data obey yield = conversion x selectivity / 100?
-
-The judge forgives a missing outcome when the other two imply it, which is only fair if the
-relation holds in the data. This measures it instead of assuming it.
-"""
 from _setup import *
 
 experiments = curated()

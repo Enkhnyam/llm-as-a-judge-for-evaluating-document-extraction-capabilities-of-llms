@@ -1,4 +1,3 @@
-"""What each run cost to produce."""
 from _setup import *
 
 completed = runs().set_index("run")

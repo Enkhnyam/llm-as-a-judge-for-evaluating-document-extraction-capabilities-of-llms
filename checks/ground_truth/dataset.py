@@ -1,4 +1,3 @@
-"""What the curated dataset contains."""
 from _setup import *
 
 experiments = curated()

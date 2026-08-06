@@ -1,4 +1,3 @@
-"""Each grader as a detector of "the chemists would reject this record"."""
 from sklearn.metrics import precision_recall_fscore_support
 from _setup import *
 
@@ -19,5 +18,5 @@ print("the chemists rejected", rejected_by_chemists, "of", len(labelled), "recor
 print()
 print(pd.DataFrame(scorecard).T.to_string(float_format="{:.2f}".format))
 print()
-print("precision: of the records a grader flagged, how many the chemists also rejected")
-print("recall:    of the records the chemists rejected, how many the grader caught")
+print("precision: of what a grader flagged, how much the chemists also rejected")
+print("recall:    of what the chemists rejected, how much the grader caught")

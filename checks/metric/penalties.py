@@ -1,10 +1,9 @@
-"""Which fields the metric penalises, and how close accepted matches sit to the cutoff."""
 from _setup import *
 
-result = totals(curation=frozen)
+result = totals(curation=curated_table)
 field_errors = pd.Series(result["field_error_counts"]).sort_values(ascending=False)
 
-labels = scored(curation=frozen)
+labels = scored(curation=curated_table)
 accepted = labels[labels.verdict == "TP"]
 penalties = accepted.avg_penalty.describe()
 
