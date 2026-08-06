@@ -17,6 +17,7 @@ SCRIPTS = [
     "metric/cost.py",
 
     "golden_set/provenance.py",
+    "golden_set/categories.py",
     "golden_set/composition.py",
     "golden_set/disagreements.py",
 
