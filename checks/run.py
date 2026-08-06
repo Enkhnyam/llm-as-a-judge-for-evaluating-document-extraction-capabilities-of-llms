@@ -1,22 +1,22 @@
-"""Run the checks and print their output.
-
-Add or remove a line below to include or drop a script — no files need deleting.
-Run one on its own with:  python checks/run.py golden_set/composition.py
-"""
 import subprocess
 import sys
 from pathlib import Path
 
 SCRIPTS = [
+    "curation/build.py",
+
     "ground_truth/dataset.py",
     "ground_truth/curation_quality.py",
     "ground_truth/outcome_identity.py",
-    "ground_truth/curation_v3.py",
 
     "metric/scores.py",
     "metric/penalties.py",
     "metric/threshold_sensitivity.py",
     "metric/error_taxonomy.py",
+    "metric/matching_quality.py",
+    "metric/catalyst_gate.py",
+    "metric/catalyst_names.py",
+    "metric/curation_ladder.py",
     "metric/cost.py",
 
     "golden_set/provenance.py",

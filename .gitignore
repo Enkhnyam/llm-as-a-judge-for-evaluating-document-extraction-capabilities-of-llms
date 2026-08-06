@@ -1,17 +1,9 @@
-# secrets
 .env
-
 /artifacts/
+/logs/
 /wandb/
-
-# python / editor cruft
 __pycache__/
 .venv/
 *.code-workspace
 *.md
-
-# local-only report
-/artifacts/checks_report.html
-
-# run logs
-/logs/
+checks/verify_additions.py

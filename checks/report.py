@@ -1,64 +1,62 @@
-"""Run the checks and write their output to one HTML page, for sharing.
-
-    python checks/report.py            -> artifacts/checks_report.html
-
-Same script list as run.py. Local only; the page is not committed.
-"""
 import html
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
 from run import SCRIPTS
 
-HERE = Path(__file__).parent
-OUT = HERE.parent / "artifacts" / "checks_report.html"
-
-STYLE = """
-body { font: 14px/1.55 -apple-system, system-ui, sans-serif; margin: 0; background: #f6f7f9; color: #1a1a1a; }
-header { background: #1f2937; color: #fff; padding: 22px 32px; }
-header h1 { margin: 0; font-size: 19px; }
-header p { margin: 4px 0 0; opacity: .75; font-size: 13px; }
-main { max-width: 1100px; margin: 0 auto; padding: 24px 32px 60px; }
-nav { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; padding: 12px 18px; margin-bottom: 24px; }
-nav a { display: inline-block; margin: 3px 14px 3px 0; color: #2563eb; text-decoration: none; font-size: 13px; }
-section { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; margin-bottom: 18px; overflow: hidden; }
-h2 { margin: 0; padding: 12px 18px; font-size: 14px; background: #f0f2f5; border-bottom: 1px solid #e3e6ea; font-family: ui-monospace, Menlo, monospace; }
-.doc { padding: 12px 18px; color: #4b5563; font-size: 13px; border-bottom: 1px solid #eef0f3; white-space: pre-wrap; }
-pre { margin: 0; padding: 16px 18px; font: 12.5px/1.5 ui-monospace, Menlo, monospace; overflow-x: auto; }
-.failed h2 { background: #fee2e2; }
-"""
-
-
-def docstring_of(path):
-    text = path.read_text()
-    if not text.startswith('"""'):
-        return ""
-    return text[3:text.index('"""', 3)].strip()
-
+here = Path(__file__).parent
+output = here.parent / "artifacts" / "checks_report.html"
 
 sections = []
-links = []
-for name in SCRIPTS:
-    path = HERE / name
-    result = subprocess.run([sys.executable, str(path)], cwd=HERE, text=True,
-                            capture_output=True,
-                            env={**__import__("os").environ, "PYTHONPATH": str(HERE)})
-    output = result.stdout.rstrip() or result.stderr.rstrip()
-    anchor = name.replace("/", "-").replace(".py", "")
-    failed = " failed" if result.returncode else ""
-    links.append(f'<a href="#{anchor}">{html.escape(name)}</a>')
-    sections.append(
-        f'<section class="{failed}" id="{anchor}"><h2>{html.escape(name)}</h2>'
-        f'<div class="doc">{html.escape(docstring_of(path))}</div>'
-        f'<pre>{html.escape(output)}</pre></section>')
-    print(("failed  " if failed else "ok      ") + name)
+for relative_path in SCRIPTS:
+    script = here / relative_path
+    title = script.stem.replace("_", " ")
+    group = script.parent.name.replace("_", " ")
 
-OUT.parent.mkdir(exist_ok=True)
-OUT.write_text(
-    f"<!doctype html><meta charset='utf-8'><title>Checks</title><style>{STYLE}</style>"
-    f"<header><h1>LLM-as-a-judge &mdash; results</h1>"
-    f"<p>Generated {datetime.now():%Y-%m-%d %H:%M} from the data on disk.</p></header>"
-    f"<main><nav>{''.join(links)}</nav>{''.join(sections)}</main>")
-print(f"\nwrote {OUT}")
+    result = subprocess.run([sys.executable, str(script)], cwd=here, text=True,
+                            capture_output=True,
+                            env={**__import__("os").environ, "PYTHONPATH": str(here)})
+    body = result.stdout if result.returncode == 0 else result.stdout + "\n" + result.stderr
+    sections.append(f"""
+      <section>
+        <h2>{html.escape(title)}<span class="group">{html.escape(group)}</span></h2>
+        <pre>{html.escape(body.strip())}</pre>
+      </section>""")
+
+navigation = "".join(
+    f'<a href="#{i}">{html.escape(Path(p).stem.replace("_", " "))}</a>'
+    for i, p in enumerate(SCRIPTS))
+numbered = "".join(s.replace("<section>", f'<section id="{i}">')
+                   for i, s in enumerate(sections))
+
+output.write_text(f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>Checks</title>
+<style>
+  body {{ font: 15px/1.6 -apple-system, system-ui, sans-serif; margin: 0;
+          color:
+  header {{ padding: 28px 40px; border-bottom: 1px solid
+  h1 {{ margin: 0 0 4px; font-size: 22px; }}
+  .when {{ color:
+  nav {{ padding: 14px 40px; border-bottom: 1px solid
+  nav a {{ display: inline-block; margin: 3px 12px 3px 0; font-size: 13px; color:
+  main {{ padding: 8px 40px 60px; max-width: 1100px; }}
+  section {{ margin: 34px 0; }}
+  h2 {{ font-size: 17px; margin: 0 0 2px; }}
+  .group {{ float: right; font-weight: normal; font-size: 12px; color:
+            text-transform: uppercase; letter-spacing: .5px; }}
+  .what {{ color:
+  pre {{ background:
+         padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.45; }}
+</style></head><body>
+<header>
+  <h1>Results, derived from the data</h1>
+  <div class="when">{len(SCRIPTS)} checks &middot; generated {datetime.now():%d %B %Y, %H:%M}</div>
+</header>
+<nav>{navigation}</nav>
+<main>{numbered}</main>
+</body></html>""")
+
+print(f"wrote {output}  ({len(SCRIPTS)} checks, {output.stat().st_size // 1024} KB)")
