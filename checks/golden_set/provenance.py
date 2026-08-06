@@ -1,12 +1,12 @@
 from _setup import *
 
 labels = scored()
-with_judge = labels.merge(judged(earlier_judge_run),
+with_judge = labels.merge(judged(),
                           left_on=["doi", "extracted_index"], right_on=["doi", "index"])
 
 def describe(row):
     if row.verdict == "MISMATCH":
-        return "matched, but the catalyst names differ"
+        return "matched, then rejected"
     if row.verdict == "FP":
         return "no matching curated experiment"
     return "metric accepted the record"

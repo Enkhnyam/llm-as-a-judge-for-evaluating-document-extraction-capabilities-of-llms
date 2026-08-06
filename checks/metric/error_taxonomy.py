@@ -6,7 +6,7 @@ verdict_counts = labels.verdict.value_counts()
 rejected_matches = labels[labels.verdict == "MISMATCH"]
 rejected_on_name = (rejected_matches.catalyst_match == False).sum()
 
-with_judge = labels.merge(judged(earlier_judge_run),
+with_judge = labels.merge(judged(),
                           left_on=["doi", "extracted_index"], right_on=["doi", "index"])
 judge_view = pd.crosstab(with_judge.verdict, with_judge.judge)
 

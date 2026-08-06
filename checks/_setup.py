@@ -12,10 +12,13 @@ from core.evaluation import evaluate
 
 extraction_run = "gpt56sol_prompt_v2/gpt56sol_n4_r1"
 judge_run = "judge_v4/judge_sol_v4"
-earlier_judge_run = "judge_v3/judge_sol_v3"
 
 curated_table = "curated_table.json"
 golden_set_file = ARTIFACTS / "gold/final/golden_set_judge_sol_v3.json"
+
+accept_threshold = 0.3
+catalyst_threshold = 0.6
+numeric_tolerance = 0.2
 
 outcomes = ["yield_percent", "selectivity_percent", "conversion_percent"]
 fields = ["catalyst", "solvent", "temperature_c", "reaction_time_min", "catalyst_amount_g",
@@ -45,12 +48,13 @@ def as_experiments(bundle):
         by_paper[paper["doi"]] = [Experiment.model_validate(r) for r in paper["records"]]
     return by_paper
 
-def scored(bundle=extraction_run, curation=curated_table, catalyst=0.6):
+def scored(bundle=extraction_run, curation=curated_table, catalyst=catalyst_threshold):
     reference = load_curated(data_path(curation))
-    _, labels = evaluate(reference, as_experiments(bundle), 0.3, catalyst, 0.2)
+    _, labels = evaluate(reference, as_experiments(bundle), accept_threshold, catalyst, numeric_tolerance)
     return pd.DataFrame(labels)
 
-def totals(bundle=extraction_run, curation=curated_table, accept=0.3, catalyst=0.6, tolerance=0.2):
+def totals(bundle=extraction_run, curation=curated_table, accept=accept_threshold,
+           catalyst=catalyst_threshold, tolerance=numeric_tolerance):
     reference = load_curated(data_path(curation))
     result, _ = evaluate(reference, as_experiments(bundle), accept, catalyst, tolerance)
     return result
@@ -66,6 +70,9 @@ def judged(bundle=judge_run):
                              "judge": verdict["verdict"],
                              "bad_fields": verdict["bad_fields"]})
     return pd.DataFrame(rows)
+
+def curated_additions():
+    return json.loads(data_path("curated_additions.json").read_text())
 
 def golden():
     labelled = pd.DataFrame(json.loads(golden_set_file.read_text()))
@@ -88,11 +95,13 @@ def runs():
     return pd.DataFrame(rows)
 
 def scores_by_run(folder):
+    # Scores are recomputed from the saved extractions against the current curated table, not read
+    # from the eval.json each run wrote, so every reported number tracks the table as it stands now.
     rows = []
-    for path in sorted(glob.glob(str(RUNS_DIR / folder / "*/eval.json"))):
+    for path in sorted(glob.glob(str(RUNS_DIR / folder / "*/config.json"))):
         run_dir = Path(path).parent
-        config = json.loads((run_dir / "config.json").read_text())
-        scores = json.loads(Path(path).read_text())
+        config = json.loads(Path(path).read_text())
+        scores = totals(bundle=f"{folder}/{run_dir.name}")
         rows.append({"run": run_dir.name,
                      "n_shots": config["harness_params"]["n_shots"],
                      "f1": scores["f1"],
