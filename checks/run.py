@@ -14,7 +14,6 @@ SCRIPTS = [
     "metric/matching_quality.py",
     "metric/catalyst_gate.py",
     "metric/catalyst_names.py",
-    "metric/curation_ladder.py",
     "metric/cost.py",
 
     "golden_set/provenance.py",
