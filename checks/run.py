@@ -25,6 +25,7 @@ SCRIPTS = [
     "judge/kappa.py",
     "judge/mcnemar.py",
     "judge/rescues.py",
+    "judge/field_types.py",
 
     "studies/shots_ablation.py",
     "studies/source_tracking.py",
