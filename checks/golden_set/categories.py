@@ -18,7 +18,9 @@ both["judge"] = both.judge.where(both.judge == "correct", "incorrect")
 groups = both.groupby(["situation", "metric", "judge"]).size().rename("records").reset_index()
 print("every extracted record, by its situation and the two verdicts:")
 print(groups.to_string(index=False))
-print(f"\ntotal {groups.records.sum()} records")
+print(f"\ntotal {groups.records.sum()} records, the two graders agreeing on "
+      f"{(both.judge == both.metric).sum()} of them "
+      f"({(both.judge == both.metric).mean():.0%})")
 
 paired = both[both.situation != "no matching curated experiment"]
 unpaired = both[both.situation == "no matching curated experiment"]
